@@ -46,9 +46,11 @@ def ai_settings() -> None:
         if provider.needs_base_url:
             st.text_input(
                 "Base URL", key="llm_base_url",
-                placeholder="https://api.groq.com/openai/v1",
+                placeholder="https://openrouter.ai/api/v1",
                 help=providers.OPENAI_COMPATIBLE_HINT,
             )
+        elif provider.base_url:
+            st.caption(f"Endpoint: `{provider.base_url}`")
 
         env_key = providers.resolve_key(provider)
         if env_key:

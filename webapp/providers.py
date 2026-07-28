@@ -93,7 +93,8 @@ class Provider:
     env_var: str                    # env / secrets name for the key
     key_hint: str                   # placeholder text
     default_model: str              # used if model listing fails
-    needs_base_url: bool = False
+    needs_base_url: bool = False    # ask the user for one
+    base_url: str = ""              # fixed endpoint for OpenAI-compatible hosts
     console_url: str = ""
     list_models: Callable[..., list[str]] = field(repr=False, default=None)
     complete: Callable[..., str] = field(repr=False, default=None)
@@ -217,6 +218,14 @@ PROVIDERS: dict[str, Provider] = {
         default_model="gemini-2.0-flash", console_url="https://aistudio.google.com/apikey",
         list_models=_google_models, complete=_google_complete,
     ),
+    "groq": Provider(
+        key_id="groq", label="Groq", package="openai",
+        env_var="GROQ_API_KEY", key_hint="gsk_…",
+        default_model="llama-3.3-70b-versatile",
+        base_url="https://api.groq.com/openai/v1",
+        console_url="https://console.groq.com/keys",
+        list_models=_openai_models, complete=_openai_complete,
+    ),
     "custom": Provider(
         key_id="custom", label="Other (OpenAI-compatible)", package="openai",
         env_var="LLM_API_KEY", key_hint="your API key",
@@ -256,11 +265,16 @@ def resolve_key(provider: Provider, user_key: str = "") -> str:
     return os.environ.get(provider.env_var, "")
 
 
+def effective_base_url(provider: Provider, user_base_url: str = "") -> str:
+    """A provider's fixed endpoint wins; otherwise whatever the user typed."""
+    return provider.base_url or user_base_url
+
+
 def list_models(provider: Provider, key: str, base_url: str = "") -> list[str]:
     if not installed(provider):
         raise ProviderError(f"`pip install {provider.package}` to use {provider.label}.")
     try:
-        return provider.list_models(key, base_url)
+        return provider.list_models(key, effective_base_url(provider, base_url))
     except Exception as exc:  # noqa: BLE001
         raise _friendly(exc, provider, "the model list") from exc
 
@@ -273,7 +287,8 @@ def complete(provider: Provider, system: str, prompt: str, key: str,
         raise ProviderError(f"No API key set for {provider.label}.")
     chosen = model or provider.default_model
     try:
-        text = provider.complete(system, prompt, key, chosen, max_tokens, base_url)
+        text = provider.complete(system, prompt, key, chosen, max_tokens,
+                                 effective_base_url(provider, base_url))
     except ProviderError:
         raise
     except Exception as exc:  # noqa: BLE001
