@@ -29,6 +29,20 @@ SOURCE_LABELS = {
 }
 
 
+# Offered in the location picker. The Muse matches on exact strings like these,
+# so they're spelled the way its API expects. Users can also type their own.
+LOCATION_OPTIONS = [
+    "Flexible / Remote",
+    "Atlanta, GA", "Austin, TX", "Boston, MA", "Charlotte, NC", "Chicago, IL",
+    "Dallas, TX", "Denver, CO", "Detroit, MI", "Houston, TX", "Las Vegas, NV",
+    "Los Angeles, CA", "Miami, FL", "Minneapolis, MN", "Nashville, TN",
+    "New York, NY", "Philadelphia, PA", "Phoenix, AZ", "Pittsburgh, PA",
+    "Portland, OR", "Raleigh, NC", "Salt Lake City, UT", "San Antonio, TX",
+    "San Diego, CA", "San Francisco, CA", "San Jose, CA", "Seattle, WA",
+    "St. Louis, MO", "Tampa, FL", "Washington, DC",
+]
+
+
 def load_base_config() -> dict[str, Any]:
     """Board lists and search terms, preferring a private config.local.json."""
     return load_config()
@@ -60,7 +74,12 @@ def adzuna_credentials() -> tuple[str, str]:
 
 
 def build_config(enabled: list[str], keywords: list[str], locations: list[str]) -> dict[str, Any]:
-    """Assemble a `fetch_all` config from the user's UI selections."""
+    """Assemble a `fetch_all` config from the user's UI selections.
+
+    Empty keywords/locations mean "no filter" and are passed through as such —
+    they are never backfilled from config, since a blank field is a choice the
+    user made and silently substituting our values would misreport the search.
+    """
     base = load_base_config()
     cfg: dict[str, Any] = {}
 
@@ -73,10 +92,11 @@ def build_config(enabled: list[str], keywords: list[str], locations: list[str]) 
         cfg["remoteok"] = True
     if "remotive" in enabled:
         cfg["remotive"] = True
-        cfg["remotive_searches"] = keywords or base.get("remotive_searches") or [""]
+        cfg["remotive_searches"] = keywords or [""]
     if "muse" in enabled:
         cfg["muse"] = True
-        cfg["muse_locations"] = locations or base.get("muse_locations") or ["Flexible / Remote"]
+        # An empty location string is a valid Muse query meaning "anywhere".
+        cfg["muse_locations"] = locations or [""]
         cfg["muse_pages"] = base.get("muse_pages", 2)
     if "adzuna" in enabled:
         app_id, app_key = adzuna_credentials()
@@ -84,8 +104,9 @@ def build_config(enabled: list[str], keywords: list[str], locations: list[str]) 
             cfg["adzuna"] = {
                 "app_id": app_id,
                 "app_key": app_key,
-                "searches": keywords or ["quality engineer"],
-                "wheres": [""] + [l for l in locations if l],
+                "searches": keywords or [""],
+                # "" is a nationwide pass; named locations are searched in addition.
+                "wheres": [""] + [l for l in locations if l and l != "Flexible / Remote"],
                 "pages": base.get("adzuna", {}).get("pages", 2),
             }
     return cfg

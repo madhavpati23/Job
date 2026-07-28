@@ -8,11 +8,21 @@ import streamlit as st
 
 from webapp import nav, search
 
-DEFAULT_EXCLUDE = "manufacturing, hardware, electrical, mechanical, sales, account"
-DEFAULT_EXCLUDE_LOCATIONS = (
-    "india, united kingdom, ireland, australia, japan, canada, germany, "
-    "singapore, mexico, philippines, brazil, poland, portugal, spain, france"
-)
+def _defaults() -> dict:
+    """Filter defaults from the config's `watch` block.
+
+    The committed config ships neutral values; a private config.local.json can
+    prefill your own. Keywords and locations are never prefilled — those are the
+    user's search, not ours.
+    """
+    watch = search.load_base_config().get("watch") or {}
+    return {
+        "exclude": ", ".join(watch.get("exclude") or []),
+        "exclude_locations": ", ".join(watch.get("exclude_locations") or []),
+        "min_salary": int(watch.get("min_salary") or 0),
+        "min_score": int(watch.get("min_score") or 15),
+        "limit": int(watch.get("limit") or 25),
+    }
 
 
 @st.cache_data(show_spinner=False, ttl=1800)
@@ -35,39 +45,53 @@ def render() -> None:
             nav.goto("Resume")
         return
 
+    d = _defaults()
+
     with st.form("search_form"):
         col1, col2 = st.columns(2)
         with col1:
             keywords = _csv(
                 st.text_input(
                     "Search keywords",
-                    value="AI evaluation, LLM evaluation, quality engineer, QA",
-                    help="Comma-separated. Used by the keyword-searchable sources.",
+                    key="search_keywords",
+                    placeholder="e.g. quality engineer, LLM evaluation, SDET",
+                    help="Comma-separated job titles or skills to search for.",
                 )
             )
-            locations = _csv(
-                st.text_input(
-                    "Locations",
-                    value="Austin, TX, Dallas, TX, Flexible / Remote",
-                    help="Comma-separated cities for The Muse and Adzuna.",
-                )
+            locations = st.multiselect(
+                "Locations",
+                options=search.LOCATION_OPTIONS,
+                key="search_locations",
+                placeholder="Choose one or more, or type your own",
+                accept_new_options=True,
+                help="Leave empty to search everywhere, including remote.",
             )
             query = st.text_input(
                 "Required word (optional)",
+                key="search_query",
                 help="Drops any job whose title and description both lack this word.",
             )
         with col2:
-            min_score = st.slider("Minimum match score", 0, 100, 15)
+            min_score = st.slider("Minimum match score", 0, 100, d["min_score"])
             min_salary = st.number_input(
-                "Minimum salary (USD)", min_value=0, max_value=500_000, value=135_000, step=5_000,
+                "Minimum salary (USD)", min_value=0, max_value=500_000,
+                value=d["min_salary"], step=5_000,
                 help="Jobs with no listed salary are kept; only known-lower ones are dropped.",
             )
-            limit = st.slider("Results to show", 5, 100, 25)
+            limit = st.slider("Results to show", 5, 100, d["limit"])
 
         with st.expander("Exclusions and sources"):
-            exclude = _csv(st.text_input("Exclude these words in titles", value=DEFAULT_EXCLUDE))
+            exclude = _csv(
+                st.text_input(
+                    "Exclude these words in titles", value=d["exclude"],
+                    placeholder="e.g. manufacturing, hardware, sales",
+                )
+            )
             exclude_locations = _csv(
-                st.text_input("Exclude these locations", value=DEFAULT_EXCLUDE_LOCATIONS)
+                st.text_input(
+                    "Exclude these locations", value=d["exclude_locations"],
+                    placeholder="e.g. india, united kingdom, canada",
+                )
             )
             enabled = st.multiselect(
                 "Sources",
@@ -88,6 +112,11 @@ def render() -> None:
         if not config:
             st.error("Select at least one source.")
             return
+        if not keywords:
+            st.info(
+                "No keywords set — searching broadly and letting the resume match "
+                "decide. Add keywords above to narrow the pool."
+            )
         with st.spinner("Fetching postings from every enabled source…"):
             try:
                 jobs = _fetch_cached(json.dumps(config, sort_keys=True))
