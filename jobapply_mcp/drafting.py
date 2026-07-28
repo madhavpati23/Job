@@ -8,22 +8,11 @@ draft grounded in the real posting and the user's real experience.
 from __future__ import annotations
 
 import re
-from collections import Counter
 
-_WORD = re.compile(r"[a-zA-Z][a-zA-Z0-9+#.]{1,}")
+from .keywords import gap_analysis
+
 _EMAIL = re.compile(r"[\w.+-]+@[\w-]+\.[\w.]+")
 _PHONE = re.compile(r"(?:\+?1[\s.-]?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}")
-_STOP = {
-    "the", "and", "for", "with", "you", "our", "are", "will", "this", "that",
-    "have", "your", "from", "but", "not", "all", "can", "has", "who", "job",
-    "work", "team", "role", "company", "experience", "years", "requirements",
-    "including", "across", "their", "they", "what", "how", "about",
-}
-
-
-def _keywords(text: str, n: int = 15) -> list[str]:
-    toks = [w.lower() for w in _WORD.findall(text or "") if w.lower() not in _STOP and len(w) > 2]
-    return [w for w, _ in Counter(toks).most_common(n)]
 
 
 def _contact(resume: str) -> tuple[str, str]:
@@ -49,10 +38,8 @@ def build_scaffold(resume: str, job: dict) -> str:
     desc = job.get("description", "")
     name, contact = _contact(resume)
 
-    job_kw = _keywords(desc, 15)
-    resume_l = resume.lower()
-    overlap = [k for k in job_kw if k in resume_l]
-    gaps = [k for k in job_kw if k not in resume_l]
+    gap = gap_analysis(resume, desc, company, n=15)
+    overlap, gaps = gap["covered"], gap["missing"]
 
     overlap_line = ", ".join(overlap[:8]) or "(none auto-detected — add manually)"
     gap_line = ", ".join(gaps[:8]) or "(none)"

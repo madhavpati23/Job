@@ -42,7 +42,7 @@ def job_picker(key_prefix: str) -> dict | None:
 
 
 def show_gap_analysis(resume: str, job: dict) -> None:
-    gaps = llm.gap_analysis(resume, job.get("description", ""))
+    gaps = llm.gap_analysis(resume, job.get("description", ""), job.get("company", ""))
     col1, col2 = st.columns(2)
     with col1:
         st.markdown("**Posting keywords your resume already covers**")

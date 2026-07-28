@@ -8,33 +8,22 @@ both from "structured starting point" to "finished draft".
 from __future__ import annotations
 
 import os
-import re
-from collections import Counter
+
+from jobapply_mcp import keywords as kw
 
 MODEL = "claude-opus-5"
 
-_WORD = re.compile(r"[a-zA-Z][a-zA-Z0-9+#.]{1,}")
-_STOP = {
-    "the", "and", "for", "with", "you", "our", "are", "will", "this", "that",
-    "have", "your", "from", "but", "not", "all", "can", "has", "who", "job",
-    "work", "team", "role", "company", "experience", "years", "requirements",
-    "including", "across", "their", "they", "what", "how", "about", "were",
-}
+
+def keywords(text: str, company: str = "", n: int = 25) -> list[str]:
+    """The terms a posting is actually screening for. See jobapply_mcp.keywords."""
+    return kw.extract(text, company, n)
 
 
-def keywords(text: str, n: int = 25) -> list[str]:
-    toks = [w.lower() for w in _WORD.findall(text or "") if w.lower() not in _STOP and len(w) > 2]
-    return [w for w, _ in Counter(toks).most_common(n)]
-
-
-def gap_analysis(resume: str, job_description: str, n: int = 25) -> dict[str, list[str]]:
+def gap_analysis(
+    resume: str, job_description: str, company: str = "", n: int = 25
+) -> dict[str, list[str]]:
     """Which posting keywords the resume already covers, and which it misses."""
-    job_kw = keywords(job_description, n)
-    resume_l = (resume or "").lower()
-    return {
-        "covered": [k for k in job_kw if k in resume_l],
-        "missing": [k for k in job_kw if k not in resume_l],
-    }
+    return kw.gap_analysis(resume, job_description, company, n)
 
 
 # --- Claude ---------------------------------------------------------------
