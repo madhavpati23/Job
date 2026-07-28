@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import streamlit as st
 
-from webapp import llm, nav, providers
+from webapp import aihint, llm, nav, providers
 from webapp.views import jobs, letter, resume, tracker, tailor
 
 st.set_page_config(page_title="Job Copilot", page_icon="🎯", layout="wide")
@@ -21,15 +21,15 @@ PAGES = {
 }
 
 
-def ai_settings() -> None:
-    """Provider / model / key picker. Optional — only the AI writing needs it."""
-    st.sidebar.subheader("AI provider *(optional)*")
+def ai_settings(auto_expand: bool = False) -> None:
+    """Provider / model / key picker. Only steps 3 and 4 need it."""
+    st.sidebar.subheader("AI provider")
     st.sidebar.caption(
-        "**Job search, matching, and the cover-letter scaffold work without this.** "
-        "Add a provider only to generate a rewritten resume or a finished letter."
+        "Powers **3 · Tailor resume** and **4 · Cover letter**. "
+        "Steps 1, 2, and 5 work without it."
     )
 
-    with st.sidebar.expander("Set up AI writing", expanded=False):
+    with st.sidebar.expander("Set up AI writing", expanded=auto_expand):
         ids = list(providers.PROVIDERS)
         pid = st.selectbox(
             "Provider",
@@ -90,9 +90,7 @@ def ai_settings() -> None:
                     help="Type a model ID, or click Load available models.",
                 )
 
-    if llm.available():
-        cfg = llm.settings()
-        st.sidebar.caption(f"AI writing: ✅ {cfg['provider'].label} · `{cfg['model']}`")
+    st.sidebar.caption(aihint.status_line())
 
 
 def sidebar() -> str:
@@ -116,7 +114,9 @@ def sidebar() -> str:
     )
 
     st.sidebar.divider()
-    ai_settings()
+    # Open the panel automatically when the step the user is on requires it —
+    # a collapsed control they've never noticed isn't discoverable.
+    ai_settings(auto_expand=choice in aihint.AI_STEPS and not llm.available())
 
     st.sidebar.divider()
     st.sidebar.caption(

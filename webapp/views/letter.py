@@ -5,7 +5,7 @@ from __future__ import annotations
 import streamlit as st
 
 from jobapply_mcp.drafting import build_scaffold
-from webapp import jobinput, llm, nav, resume_io
+from webapp import aihint, jobinput, llm, nav, resume_io
 
 
 def render() -> None:
@@ -27,28 +27,34 @@ def render() -> None:
 
     st.divider()
     ready = llm.available()
-    notes = st.text_area(
-        "Anything to work in? (optional)",
-        placeholder="e.g. Mention I've shipped an LLM evaluation platform end to end.",
-        key="letter_notes",
-    )
 
-    col1, col2 = st.columns(2)
-    if col1.button("Write cover letter", type="primary", disabled=not ready):
-        with st.spinner("Drafting your letter…"):
-            try:
-                st.session_state.cover_letter = llm.cover_letter(resume, job, notes)
-            except Exception as exc:  # noqa: BLE001
-                llm.show_error(exc)
-
-    if col2.button("Build scaffold (no API key needed)"):
-        st.session_state.cover_letter = build_scaffold(resume, job)
-
-    if not ready:
-        st.caption(
-            "Pick an AI provider and add a key in the sidebar for a finished letter, or use the "
-            "scaffold — it assembles the real facts and keyword overlap for you to edit."
+    if ready:
+        aihint.ready_badge()
+        notes = st.text_area(
+            "Anything to work in? (optional)",
+            placeholder="e.g. Mention I've shipped an LLM evaluation platform end to end.",
+            key="letter_notes",
         )
+        col1, col2 = st.columns(2)
+        if col1.button("Write cover letter", type="primary"):
+            with st.spinner("Drafting your letter…"):
+                try:
+                    st.session_state.cover_letter = llm.cover_letter(resume, job, notes)
+                except Exception as exc:  # noqa: BLE001
+                    llm.show_error(exc)
+        if col2.button("Build scaffold instead"):
+            st.session_state.cover_letter = build_scaffold(resume, job)
+    else:
+        # The scaffold is genuinely useful here, so lead with it rather than
+        # making the whole step look blocked.
+        aihint.setup_callout("write a finished cover letter")
+        st.markdown("#### Or start from a scaffold — no key needed")
+        st.caption(
+            "Assembles the posting's real keywords and your matching experience "
+            "into a structure you fill in yourself."
+        )
+        if st.button("Build scaffold", type="primary"):
+            st.session_state.cover_letter = build_scaffold(resume, job)
 
     letter = st.session_state.get("cover_letter")
     if not letter:

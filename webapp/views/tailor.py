@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import streamlit as st
 
-from webapp import diffview, jobinput, llm, nav, resume_io
+from webapp import aihint, diffview, jobinput, llm, nav, resume_io
 
 
 def show_gap_analysis(resume: str, job: dict) -> None:
@@ -44,19 +44,21 @@ def render() -> None:
     st.divider()
 
     ready = llm.available()
+
+    if not ready:
+        aihint.setup_callout("rewrite your resume for this job")
+        st.caption(
+            "Or use the gap analysis above to edit your resume by hand, then continue."
+        )
+        nav.next_button("Tailor resume", key="next_tailor_nokey")
+        return
+
+    aihint.ready_badge()
     notes = st.text_area(
         "Anything else to emphasize? (optional)",
         placeholder="e.g. Lead with the AI evaluation work; keep it to one page.",
         key="tailor_notes",
     )
-
-    if not ready:
-        st.info(
-            "Pick an AI provider and add a key in the sidebar to generate a rewritten resume. "
-            "Without one, use the gap analysis above to edit manually — then continue."
-        )
-        nav.next_button("Tailor resume", key="next_tailor_nokey")
-        return
 
     if st.button("Generate tailored resume", type="primary"):
         with st.spinner("Rewriting your resume for this posting…"):
