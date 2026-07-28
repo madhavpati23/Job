@@ -5,8 +5,7 @@ from __future__ import annotations
 import streamlit as st
 
 from jobapply_mcp.drafting import build_scaffold
-from webapp import llm, nav, resume_io
-from webapp.views.tailor import job_picker
+from webapp import jobinput, llm, nav, resume_io
 
 
 def render() -> None:
@@ -19,7 +18,7 @@ def render() -> None:
             nav.goto("Resume")
         return
 
-    job = job_picker("letter")
+    job = jobinput.picker()
     if not job:
         st.info("Paste a job description above, or pick one from search.")
         if st.button("← Find jobs"):

@@ -4,41 +4,7 @@ from __future__ import annotations
 
 import streamlit as st
 
-from webapp import diffview, llm, nav, resume_io
-
-
-def job_picker(key_prefix: str) -> dict | None:
-    """Shared control: use the job selected on the search page, or paste one.
-
-    Returns a job dict (title/company/location/description) or None.
-    """
-    selected = st.session_state.get("selected_job")
-    options = ["Paste a job description"]
-    if selected:
-        options.insert(0, f"Selected: {selected['title'].strip()} — {selected['company']}")
-
-    choice = st.radio("Job posting", options, key=f"{key_prefix}_source", horizontal=True)
-
-    if selected and choice.startswith("Selected:"):
-        return selected
-
-    col1, col2 = st.columns(2)
-    title = col1.text_input("Job title", key=f"{key_prefix}_title")
-    company = col2.text_input("Company", key=f"{key_prefix}_company")
-    description = st.text_area(
-        "Job description", height=240, key=f"{key_prefix}_desc",
-        placeholder="Paste the full posting here — the more detail, the better the tailoring.",
-    )
-    if not description.strip():
-        return None
-    return {
-        "id": "manual",
-        "title": title or "the role",
-        "company": company or "the company",
-        "location": "",
-        "url": "",
-        "description": description,
-    }
+from webapp import diffview, jobinput, llm, nav, resume_io
 
 
 def show_gap_analysis(resume: str, job: dict) -> None:
@@ -66,7 +32,7 @@ def render() -> None:
             nav.goto("Resume")
         return
 
-    job = job_picker("tailor")
+    job = jobinput.picker()
     if not job:
         st.info("Paste a job description above, or pick one from search.")
         if st.button("← Find jobs"):
