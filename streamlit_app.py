@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import streamlit as st
 
-from webapp import llm
+from webapp import llm, nav
 from webapp.views import jobs, letter, resume, tracker, tailor
 
 st.set_page_config(page_title="Job Copilot", page_icon="🎯", layout="wide")
@@ -22,8 +22,13 @@ PAGES = {
 
 
 def sidebar() -> str:
+    # Must run before the radio below is instantiated — see webapp/nav.py.
+    nav.apply_pending()
+
     st.sidebar.title("🎯 Job Copilot")
-    choice = st.sidebar.radio("Steps", list(PAGES), label_visibility="collapsed")
+    choice = st.sidebar.radio(
+        "Steps", list(PAGES), key=nav.NAV_KEY, label_visibility="collapsed"
+    )
 
     st.sidebar.divider()
     st.sidebar.subheader("Status")

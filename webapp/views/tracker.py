@@ -45,7 +45,7 @@ def render() -> None:
         }
         for a in apps
     ]
-    st.dataframe(rows, use_container_width=True)
+    st.dataframe(rows, width="stretch")
 
     buf = io.StringIO()
     writer = csv.DictWriter(buf, fieldnames=FIELDS)

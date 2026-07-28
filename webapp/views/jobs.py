@@ -6,7 +6,7 @@ import json
 
 import streamlit as st
 
-from webapp import search
+from webapp import nav, search
 
 DEFAULT_EXCLUDE = "manufacturing, hardware, electrical, mechanical, sales, account"
 DEFAULT_EXCLUDE_LOCATIONS = (
@@ -30,7 +30,9 @@ def render() -> None:
 
     resume = st.session_state.get("resume_text", "")
     if not resume:
-        st.warning("Add your resume on the **Resume** page first — matching scores need it.")
+        st.warning("Matching scores need your resume first.")
+        if st.button("← Back to Resume", type="primary"):
+            nav.goto("Resume")
         return
 
     with st.form("search_form"):
@@ -115,6 +117,8 @@ def render() -> None:
         f"Fetched {st.session_state.get('fetched_count', 0):,} postings · "
         f"{len(shown)} above a score of {threshold}."
     )
+    if shown:
+        st.caption("Click a row to read it, then **Select this job & continue** to tailor against it.")
 
     for job in shown:
         _render_job_card(job)
@@ -140,8 +144,9 @@ def _render_job_card(job: dict) -> None:
             st.caption("Flags: " + " · ".join(job["penalty_flags"]))
         st.text(job.get("description", "")[:1200])
 
-        if st.button("Select this job", key=f"select_{job['id']}"):
+        if st.button("Select this job & continue →", type="primary", key=f"select_{job['id']}"):
             st.session_state.selected_job = job
+            # Drop any output tailored to the previously selected job.
             st.session_state.pop("tailored_resume", None)
             st.session_state.pop("cover_letter", None)
-            st.success(f"Selected. Head to **Tailor resume** or **Cover letter**.")
+            nav.goto("Tailor resume")

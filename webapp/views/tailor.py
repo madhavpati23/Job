@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import streamlit as st
 
-from webapp import llm, resume_io
+from webapp import llm, nav, resume_io
 
 
 def job_picker(key_prefix: str) -> dict | None:
@@ -61,12 +61,16 @@ def render() -> None:
 
     resume = st.session_state.get("resume_text", "")
     if not resume:
-        st.warning("Add your resume on the **Resume** page first.")
+        st.warning("Add your resume first.")
+        if st.button("← Back to Resume", type="primary"):
+            nav.goto("Resume")
         return
 
     job = job_picker("tailor")
     if not job:
-        st.info("Select a job on the **Find jobs** page, or paste a description above.")
+        st.info("Paste a job description above, or pick one from search.")
+        if st.button("← Find jobs"):
+            nav.goto("Find jobs")
         return
 
     st.divider()
@@ -83,8 +87,9 @@ def render() -> None:
     if not key:
         st.info(
             "Add an Anthropic API key in the sidebar to generate a rewritten resume. "
-            "Without one, use the gap analysis above to edit manually."
+            "Without one, use the gap analysis above to edit manually — then continue."
         )
+        nav.next_button("Tailor resume", key="next_tailor_nokey")
         return
 
     if st.button("Generate tailored resume", type="primary"):
@@ -116,3 +121,6 @@ def render() -> None:
         file_name=f"resume_{slug}.docx",
         mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     )
+
+    st.divider()
+    nav.next_button("Tailor resume")

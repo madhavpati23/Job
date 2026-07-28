@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import streamlit as st
 
-from webapp import resume_io
+from webapp import nav, resume_io
 
 
 def render() -> None:
@@ -55,3 +55,7 @@ def render() -> None:
     col1, col2 = st.columns(2)
     col1.metric("Characters", f"{len(edited):,}")
     col2.metric("Words", f"{len(edited.split()):,}")
+
+    st.divider()
+    st.markdown("**Looks right?** Next we'll search live job boards and rank them against this.")
+    nav.next_button("Resume")

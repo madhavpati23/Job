@@ -5,7 +5,7 @@ from __future__ import annotations
 import streamlit as st
 
 from jobapply_mcp.drafting import build_scaffold
-from webapp import llm, resume_io
+from webapp import llm, nav, resume_io
 from webapp.views.tailor import job_picker
 
 
@@ -14,12 +14,16 @@ def render() -> None:
 
     resume = st.session_state.get("resume_text", "")
     if not resume:
-        st.warning("Add your resume on the **Resume** page first.")
+        st.warning("Add your resume first.")
+        if st.button("← Back to Resume", type="primary"):
+            nav.goto("Resume")
         return
 
     job = job_picker("letter")
     if not job:
-        st.info("Select a job on the **Find jobs** page, or paste a description above.")
+        st.info("Paste a job description above, or pick one from search.")
+        if st.button("← Find jobs"):
+            nav.goto("Find jobs")
         return
 
     st.divider()
@@ -70,7 +74,9 @@ def render() -> None:
     )
 
     st.divider()
-    if st.button("Log this as applied"):
+    st.markdown("**Applied?** Log it so you can track and export your applications.")
+    col1, col2 = st.columns(2)
+    if col1.button("Log this as applied & continue →", type="primary"):
         st.session_state.setdefault("applications", []).append(
             {
                 "company": job.get("company", ""),
@@ -79,4 +85,6 @@ def render() -> None:
                 "url": job.get("url", ""),
             }
         )
-        st.success("Logged — see the **Tracker** page.")
+        nav.goto("Tracker")
+    with col2:
+        nav.next_button("Cover letter", label="Skip to Tracker →", type="secondary")
