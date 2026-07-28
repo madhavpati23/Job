@@ -6,6 +6,7 @@ import streamlit as st
 
 from jobapply_mcp.drafting import build_scaffold
 from webapp import aihint, jobinput, llm, nav, resume_io
+from webapp.views import tracker
 
 
 def render() -> None:
@@ -82,13 +83,11 @@ def render() -> None:
     st.markdown("**Applied?** Log it so you can track and export your applications.")
     col1, col2 = st.columns(2)
     if col1.button("Log this as applied & continue →", type="primary"):
-        st.session_state.setdefault("applications", []).append(
-            {
-                "company": job.get("company", ""),
-                "role": job.get("title", "").strip(),
-                "location": job.get("location", ""),
-                "url": job.get("url", ""),
-            }
+        tracker.add(
+            company=job.get("company", ""),
+            role=job.get("title", "").strip(),
+            location=job.get("location", ""),
+            url=job.get("url", ""),
         )
         nav.goto("Tracker")
     with col2:
