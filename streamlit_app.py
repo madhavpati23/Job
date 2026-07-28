@@ -101,10 +101,11 @@ def sidebar() -> str:
 
     # The step list carries the status: ✅ done, 🔒 blocked, ○ available. That
     # replaces a separate Status block that repeated the same facts.
-    st.session_state["_step_states"] = nav.progress()
+    states = nav.progress()
     choice = st.sidebar.radio(
         "Steps", list(PAGES), key=nav.NAV_KEY,
-        format_func=nav.step_label, label_visibility="collapsed",
+        format_func=lambda s: nav.step_label(s, states),
+        label_visibility="collapsed",
     )
 
     selected = st.session_state.get("selected_job")

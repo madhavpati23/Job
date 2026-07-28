@@ -57,9 +57,13 @@ def progress() -> dict[str, str]:
 _ICONS = {"done": "✅", "locked": "🔒", "": "○"}
 
 
-def step_label(step: str) -> str:
-    """'✅ 1 · Resume' — number, state, and name in one line."""
-    states = st.session_state.get("_step_states") or {}
+def step_label(step: str, states: dict[str, str]) -> str:
+    """'✅ 1 · Resume' — number, state, and name in one line.
+
+    `states` is passed in rather than read from session_state: Streamlit calls
+    a widget's format_func outside the script run when resolving widget state,
+    where session_state isn't available.
+    """
     icon = _ICONS.get(states.get(step, ""), "○")
     return f"{icon}  {STEPS.index(step) + 1} · {step}"
 
