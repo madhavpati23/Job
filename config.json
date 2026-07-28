@@ -1,0 +1,38 @@
+{
+  "_comment": "EXAMPLE CONFIG. Copy this to config.local.json and edit that instead — config.local.json is gitignored and takes precedence, so your real target companies and salary floor stay private. Board tokens are the company slug in their careers URL, e.g. boards.greenhouse.io/<token>.",
+
+  "greenhouse": ["stripe", "datadog", "cloudflare", "dropbox", "reddit"],
+  "lever": ["spotify"],
+  "ashby": ["notion", "linear", "vercel"],
+
+  "remoteok": true,
+
+  "remotive": true,
+  "remotive_searches": ["quality engineer", "QA", "test engineer"],
+
+  "muse": true,
+  "muse_locations": ["Austin, TX", "New York, NY", "San Francisco, CA", "Flexible / Remote"],
+  "muse_pages": 2,
+
+  "smartrecruiters": [],
+
+  "adzuna": {
+    "_help": "Free keys at https://developer.adzuna.com. The app reads them from ADZUNA_APP_ID / ADZUNA_APP_KEY (env or Streamlit secrets) — never commit real keys here.",
+    "app_id": "",
+    "app_key": "",
+    "searches": ["quality engineer", "test engineer"],
+    "wheres": ["", "Texas"],
+    "pages": 2
+  },
+
+  "watch": {
+    "_help": "Used by the `watch` CLI command for the daily digest.",
+    "query": null,
+    "exclude": ["manufacturing", "hardware", "electrical", "mechanical", "sales"],
+    "location": null,
+    "exclude_locations": ["india", "united kingdom", "canada", "germany", "australia"],
+    "min_score": 15,
+    "min_salary": 0,
+    "limit": 20
+  }
+}

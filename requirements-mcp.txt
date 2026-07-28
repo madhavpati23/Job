@@ -1,0 +1,5 @@
+# Local-only extras: the MCP server and the Playwright autofill CLI.
+# Not needed to run or deploy the Streamlit web app.
+-r requirements.txt
+mcp>=1.2.0
+playwright>=1.49.0

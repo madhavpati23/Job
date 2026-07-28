@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# Secrets — never commit
+.streamlit/secrets.toml
+.env
+
+# Personal job-search data (resumes, drafts, application history).
+# The app is multi-user and keeps everything in-session; these are local artifacts.
+data/
+drafts/
+interview_prep/
+applications.csv
+new_matches.md
+application_queue.md
+profile.json
+*.pdf
+*.docx
+Madhav_*
+Resume*.md
+Resume*.html
+resume*.html
+Venkata_*
+Cover_Letter_Openers.md
+Interview_STAR_Stories.md
+
+# Machine-specific: contains absolute local paths
+.mcp.json
+
+# Your real search targets, salary floor, and filters
+config.local.json
