@@ -77,25 +77,25 @@ def render() -> None:
     show_gap_analysis(resume, job)
     st.divider()
 
-    key = llm.api_key(st.session_state.get("user_api_key", ""))
+    ready = llm.available()
     notes = st.text_area(
         "Anything else to emphasize? (optional)",
         placeholder="e.g. Lead with the AI evaluation work; keep it to one page.",
         key="tailor_notes",
     )
 
-    if not key:
+    if not ready:
         st.info(
-            "Add an Anthropic API key in the sidebar to generate a rewritten resume. "
+            "Pick an AI provider and add a key in the sidebar to generate a rewritten resume. "
             "Without one, use the gap analysis above to edit manually — then continue."
         )
         nav.next_button("Tailor resume", key="next_tailor_nokey")
         return
 
     if st.button("Generate tailored resume", type="primary"):
-        with st.spinner("Claude is rewriting your resume for this posting…"):
+        with st.spinner("Rewriting your resume for this posting…"):
             try:
-                st.session_state.tailored_resume = llm.tailor_resume(resume, job, key, notes)
+                st.session_state.tailored_resume = llm.tailor_resume(resume, job, notes)
             except Exception as exc:  # noqa: BLE001
                 st.error(f"Generation failed: {exc}")
 

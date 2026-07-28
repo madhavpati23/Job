@@ -27,7 +27,7 @@ def render() -> None:
         return
 
     st.divider()
-    key = llm.api_key(st.session_state.get("user_api_key", ""))
+    ready = llm.available()
     notes = st.text_area(
         "Anything to work in? (optional)",
         placeholder="e.g. Mention I've shipped an LLM evaluation platform end to end.",
@@ -35,19 +35,19 @@ def render() -> None:
     )
 
     col1, col2 = st.columns(2)
-    if col1.button("Write cover letter", type="primary", disabled=not key):
-        with st.spinner("Claude is drafting your letter…"):
+    if col1.button("Write cover letter", type="primary", disabled=not ready):
+        with st.spinner("Drafting your letter…"):
             try:
-                st.session_state.cover_letter = llm.cover_letter(resume, job, key, notes)
+                st.session_state.cover_letter = llm.cover_letter(resume, job, notes)
             except Exception as exc:  # noqa: BLE001
                 st.error(f"Generation failed: {exc}")
 
     if col2.button("Build scaffold (no API key needed)"):
         st.session_state.cover_letter = build_scaffold(resume, job)
 
-    if not key:
+    if not ready:
         st.caption(
-            "Add an Anthropic API key in the sidebar for a finished letter, or use the "
+            "Pick an AI provider and add a key in the sidebar for a finished letter, or use the "
             "scaffold — it assembles the real facts and keyword overlap for you to edit."
         )
 

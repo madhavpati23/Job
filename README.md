@@ -55,8 +55,23 @@ scaffold all work without them.
 
 | Key | Enables |
 |-----|---------|
-| `ANTHROPIC_API_KEY` | Claude-written resume tailoring and cover letters |
+| One of the AI provider keys below | AI-written resume tailoring and cover letters |
 | `ADZUNA_APP_ID` / `ADZUNA_APP_KEY` | Nationwide US aggregation ([free keys](https://developer.adzuna.com)) |
+
+### AI providers
+
+Pick whichever you already use — set it in the sidebar at runtime, or via
+secrets/env so it's preselected.
+
+| Provider | Env var | Notes |
+|----------|---------|-------|
+| Anthropic (Claude) | `ANTHROPIC_API_KEY` | Default |
+| OpenAI | `OPENAI_API_KEY` | |
+| Google (Gemini) | `GOOGLE_API_KEY` | |
+| Other (OpenAI-compatible) | `LLM_API_KEY` | Groq, Together, OpenRouter, DeepSeek, Fireworks, vLLM, Ollama, LM Studio — set a base URL |
+
+Model IDs are fetched live from the provider you select, so the list never goes
+stale. A local endpoint (Ollama, LM Studio) needs a base URL but no key.
 
 Set them as environment variables, or copy `.streamlit/secrets.toml.example` to
 `.streamlit/secrets.toml` and fill it in. Users can also paste their own

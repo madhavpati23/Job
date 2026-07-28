@@ -7,11 +7,9 @@ both from "structured starting point" to "finished draft".
 
 from __future__ import annotations
 
-import os
-
 from jobapply_mcp import keywords as kw
-
-MODEL = "claude-opus-5"
+from webapp import providers
+from webapp.providers import ProviderError  # re-exported for callers
 
 
 def keywords(text: str, company: str = "", n: int = 25) -> list[str]:
@@ -26,64 +24,40 @@ def gap_analysis(
     return kw.gap_analysis(resume, job_description, company, n)
 
 
-# --- Claude ---------------------------------------------------------------
-
-def api_key(user_key: str = "") -> str:
-    """Resolve a key from the user's input, Streamlit secrets, or the env."""
-    if user_key.strip():
-        return user_key.strip()
-    try:
-        import streamlit as st
-
-        if "ANTHROPIC_API_KEY" in st.secrets:
-            return str(st.secrets["ANTHROPIC_API_KEY"])
-    except Exception:
-        pass
-    return os.environ.get("ANTHROPIC_API_KEY", "")
+# --- LLM backends ---------------------------------------------------------
+# Provider selection lives in webapp/providers.py; these are thin helpers the
+# views call so no view has to know which backend is active.
 
 
-def available(user_key: str = "") -> bool:
-    if not api_key(user_key):
+def settings() -> dict:
+    """The active provider/model/key/base_url, read from session state."""
+    import streamlit as st
+
+    pid = st.session_state.get("llm_provider", providers.DEFAULT_PROVIDER)
+    provider = providers.get(pid)
+    return {
+        "provider": provider,
+        "key": providers.resolve_key(provider, st.session_state.get("llm_key", "")),
+        "model": st.session_state.get("llm_model", "") or provider.default_model,
+        "base_url": st.session_state.get("llm_base_url", ""),
+    }
+
+
+def available() -> bool:
+    """Can we actually generate right now?"""
+    cfg = settings()
+    if not providers.installed(cfg["provider"]):
         return False
-    try:
-        import anthropic  # noqa: F401
-    except ImportError:
-        return False
-    return True
+    # A local OpenAI-compatible server (Ollama, LM Studio) needs no key.
+    return bool(cfg["key"] or cfg["base_url"])
 
 
-def _complete(system: str, prompt: str, key: str, max_tokens: int = 20000) -> str:
-    """One streamed request to Claude. Returns the text, or raises RuntimeError."""
-    import anthropic
-
-    client = anthropic.Anthropic(api_key=key)
-    kwargs = dict(
-        model=MODEL,
-        max_tokens=max_tokens,
-        system=system,
-        messages=[{"role": "user", "content": prompt}],
+def _complete(system: str, prompt: str, max_tokens: int = 20000) -> str:
+    cfg = settings()
+    return providers.complete(
+        cfg["provider"], system, prompt, cfg["key"], cfg["model"],
+        max_tokens=max_tokens, base_url=cfg["base_url"],
     )
-
-    # Server-side fallbacks re-run the request on another model if Claude Opus 5's
-    # safety classifiers decline it, so a borderline job posting can't dead-end the
-    # user. Older SDKs don't know the parameter — fall back to a plain request.
-    try:
-        with client.beta.messages.stream(
-            betas=["server-side-fallback-2026-07-01"], fallbacks="default", **kwargs
-        ) as stream:
-            message = stream.get_final_message()
-    except (TypeError, AttributeError, anthropic.BadRequestError):
-        with client.messages.stream(**kwargs) as stream:
-            message = stream.get_final_message()
-
-    if message.stop_reason == "refusal":
-        raise RuntimeError(
-            "Claude declined this request. Try again with a different job posting."
-        )
-    text = "".join(b.text for b in message.content if b.type == "text").strip()
-    if not text:
-        raise RuntimeError("Claude returned an empty response — try again.")
-    return text
 
 
 _TAILOR_SYSTEM = """You are an expert resume editor. You rewrite an existing resume so it \
@@ -102,7 +76,7 @@ Output the complete tailored resume in markdown and nothing else — no preamble
 commentary, no explanation of your changes."""
 
 
-def tailor_resume(resume: str, job: dict, key: str, extra_notes: str = "") -> str:
+def tailor_resume(resume: str, job: dict, extra_notes: str = "") -> str:
     notes = f"\n\nAdditional instructions from the candidate:\n{extra_notes}" if extra_notes.strip() else ""
     prompt = f"""Tailor this resume for the job posting below.
 
@@ -117,7 +91,7 @@ Location: {job.get('location', '')}
 <current_resume>
 {resume}
 </current_resume>{notes}"""
-    return _complete(_TAILOR_SYSTEM, prompt, key, max_tokens=24000)
+    return _complete(_TAILOR_SYSTEM, prompt, max_tokens=24000)
 
 
 _LETTER_SYSTEM = """You write cover letters that hiring managers actually finish reading.
@@ -134,7 +108,7 @@ Paragraph 2: concrete evidence from their actual work. Paragraph 3: brief close.
 Output the letter body in markdown, starting with the greeting. No commentary."""
 
 
-def cover_letter(resume: str, job: dict, key: str, extra_notes: str = "") -> str:
+def cover_letter(resume: str, job: dict, extra_notes: str = "") -> str:
     notes = f"\n\nAdditional instructions from the candidate:\n{extra_notes}" if extra_notes.strip() else ""
     prompt = f"""Write a cover letter for this job.
 
@@ -149,4 +123,4 @@ Location: {job.get('location', '')}
 <resume>
 {resume}
 </resume>{notes}"""
-    return _complete(_LETTER_SYSTEM, prompt, key, max_tokens=8000)
+    return _complete(_LETTER_SYSTEM, prompt, max_tokens=8000)
