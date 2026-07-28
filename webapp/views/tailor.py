@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import streamlit as st
 
-from webapp import llm, nav, resume_io
+from webapp import diffview, llm, nav, resume_io
 
 
 def job_picker(key_prefix: str) -> dict | None:
@@ -105,10 +105,33 @@ def render() -> None:
 
     st.divider()
     st.subheader("Tailored resume")
-    st.caption("Edit freely before downloading — you are the final check on every claim.")
-    edited = st.text_area("Result", value=tailored, height=520, key="tailored_editor")
-    if edited != tailored:
-        st.session_state.tailored_resume = edited
+
+    stats = diffview.summarize(resume, tailored)
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Lines added", stats["added"])
+    c2.metric("Reworded", stats["reworded"])
+    c3.metric("Removed", stats["removed"])
+    c4.metric("Unchanged", stats["unchanged"])
+
+    tab_edit, tab_diff = st.tabs(["Edit", "What changed"])
+
+    with tab_edit:
+        st.caption("Edit freely before downloading — you are the final check on every claim.")
+        edited = st.text_area("Result", value=tailored, height=520, key="tailored_editor")
+        if edited != tailored:
+            st.session_state.tailored_resume = edited
+
+    with tab_diff:
+        st.caption(
+            "Green = new or reworded. Red strikethrough = cut from your original. "
+            "Check every green phrase is something you can defend in an interview."
+        )
+        st.markdown(
+            diffview.render_html(resume, st.session_state.tailored_resume),
+            unsafe_allow_html=True,
+        )
+
+    edited = st.session_state.tailored_resume
 
     slug = f"{job.get('company', 'resume')}".lower().replace(" ", "_")[:30]
     col1, col2 = st.columns(2)
