@@ -40,7 +40,7 @@ def render() -> None:
             try:
                 st.session_state.cover_letter = llm.cover_letter(resume, job, notes)
             except Exception as exc:  # noqa: BLE001
-                st.error(f"Generation failed: {exc}")
+                llm.show_error(exc)
 
     if col2.button("Build scaffold (no API key needed)"):
         st.session_state.cover_letter = build_scaffold(resume, job)

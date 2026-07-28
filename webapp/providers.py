@@ -24,7 +24,65 @@ OPENAI_COMPATIBLE_HINT = (
 
 
 class ProviderError(RuntimeError):
-    """Anything the user can act on: missing package, bad key, refusal."""
+    """Anything the user can act on: missing package, bad key, refusal.
+
+    `detail` carries the provider's raw text so the UI can offer it on demand
+    without putting a JSON dump in front of the user.
+    """
+
+    def __init__(self, message: str, detail: str = ""):
+        super().__init__(message)
+        self.detail = detail
+
+
+def _friendly(exc: Exception, provider: "Provider", model: str) -> ProviderError:
+    """Turn a provider SDK exception into something the user can act on.
+
+    Providers raise wildly different exception types with multi-line JSON in
+    str(exc), so this matches on the text rather than the class.
+    """
+    raw = str(exc)
+    low = raw.lower()
+    status = getattr(exc, "status_code", None) or getattr(exc, "code", None)
+
+    quota_zero = "limit: 0" in low or "limit:0" in low
+    if quota_zero:
+        msg = (
+            f"**{model}** isn't available on your {provider.label} plan — the account "
+            f"shows a quota of zero for it, so every request is rejected. Pick a "
+            f"different model in the sidebar (**Load available models**), or enable "
+            f"billing with {provider.label}."
+        )
+    elif status == 429 or "429" in low or "resource_exhausted" in low or "rate limit" in low or "quota" in low:
+        msg = (
+            f"{provider.label} rate limit or quota reached. Wait a moment and retry, "
+            f"pick a smaller/cheaper model, or check your plan's billing settings."
+        )
+    elif status in (401, 403) or "api key" in low or "unauthorized" in low or \
+            "permission_denied" in low or "authentication" in low or "invalid_api_key" in low:
+        msg = (
+            f"{provider.label} rejected the API key. Check it's correct, active, and "
+            f"has access to {model}."
+        )
+    elif status == 404 or "not found" in low or "does not exist" in low or "not_found" in low:
+        msg = (
+            f"**{model}** wasn't found on {provider.label}. Click **Load available "
+            f"models** in the sidebar and pick one from the list."
+        )
+    elif "context" in low and ("length" in low or "window" in low or "too long" in low):
+        msg = (
+            "The resume and job description together exceed this model's context "
+            "window. Try a model with a larger context, or shorten the posting."
+        )
+    elif "connection" in low or "timeout" in low or "timed out" in low:
+        msg = (
+            f"Couldn't reach {provider.label}. Check your network — some corporate "
+            f"networks block AI provider domains."
+        )
+    else:
+        msg = f"{provider.label} returned an error."
+
+    return ProviderError(msg, detail=raw)
 
 
 @dataclass
@@ -203,8 +261,8 @@ def list_models(provider: Provider, key: str, base_url: str = "") -> list[str]:
         raise ProviderError(f"`pip install {provider.package}` to use {provider.label}.")
     try:
         return provider.list_models(key, base_url)
-    except Exception as exc:  # noqa: BLE001 — surfaced to the user verbatim
-        raise ProviderError(f"Couldn't list models: {exc}") from exc
+    except Exception as exc:  # noqa: BLE001
+        raise _friendly(exc, provider, "the model list") from exc
 
 
 def complete(provider: Provider, system: str, prompt: str, key: str,
@@ -213,13 +271,13 @@ def complete(provider: Provider, system: str, prompt: str, key: str,
         raise ProviderError(f"`pip install {provider.package}` to use {provider.label}.")
     if not key and not base_url:
         raise ProviderError(f"No API key set for {provider.label}.")
+    chosen = model or provider.default_model
     try:
-        text = provider.complete(system, prompt, key, model or provider.default_model,
-                                 max_tokens, base_url)
+        text = provider.complete(system, prompt, key, chosen, max_tokens, base_url)
     except ProviderError:
         raise
     except Exception as exc:  # noqa: BLE001
-        raise ProviderError(str(exc)) from exc
+        raise _friendly(exc, provider, chosen) from exc
     if not text:
         raise ProviderError("The model returned an empty response — try again.")
     return text

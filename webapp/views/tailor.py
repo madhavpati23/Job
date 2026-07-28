@@ -97,7 +97,7 @@ def render() -> None:
             try:
                 st.session_state.tailored_resume = llm.tailor_resume(resume, job, notes)
             except Exception as exc:  # noqa: BLE001
-                st.error(f"Generation failed: {exc}")
+                llm.show_error(exc)
 
     tailored = st.session_state.get("tailored_resume")
     if not tailored:

@@ -52,6 +52,17 @@ def available() -> bool:
     return bool(cfg["key"] or cfg["base_url"])
 
 
+def show_error(exc: Exception) -> None:
+    """Render a generation failure: plain message up top, raw detail on demand."""
+    import streamlit as st
+
+    st.error(str(exc))
+    detail = getattr(exc, "detail", "")
+    if detail and detail != str(exc):
+        with st.expander("Technical details"):
+            st.code(detail)
+
+
 def _complete(system: str, prompt: str, max_tokens: int = 20000) -> str:
     cfg = settings()
     return providers.complete(
