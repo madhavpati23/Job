@@ -98,20 +98,18 @@ def sidebar() -> str:
     nav.apply_pending()
 
     st.sidebar.title("🎯 Job Copilot")
+
+    # The step list carries the status: ✅ done, 🔒 blocked, ○ available. That
+    # replaces a separate Status block that repeated the same facts.
+    st.session_state["_step_states"] = nav.progress()
     choice = st.sidebar.radio(
-        "Steps", list(PAGES), key=nav.NAV_KEY, label_visibility="collapsed"
+        "Steps", list(PAGES), key=nav.NAV_KEY,
+        format_func=nav.step_label, label_visibility="collapsed",
     )
 
-    st.sidebar.divider()
-    st.sidebar.subheader("Status")
-    resume_text = st.session_state.get("resume_text", "")
-    st.sidebar.write(
-        f"Resume: {'✅ ' + st.session_state.get('resume_name', 'loaded') if resume_text else '— none'}"
-    )
     selected = st.session_state.get("selected_job")
-    st.sidebar.write(
-        f"Job: {'✅ ' + selected['company'] if selected else '— none selected'}"
-    )
+    if selected:
+        st.sidebar.caption(f"Job: **{selected['company']}** — {selected['title'].strip()[:40]}")
 
     st.sidebar.divider()
     # Open the panel automatically when the step the user is on requires it —

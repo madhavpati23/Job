@@ -29,6 +29,41 @@ def goto(step: str) -> None:
     st.rerun()
 
 
+def progress() -> dict[str, str]:
+    """Per-step state: 'done', 'locked', or '' (available, not yet done).
+
+    Doubles as the app's status display, so it reads what the steps actually
+    depend on rather than a separate hand-maintained summary.
+    """
+    from webapp import jobinput
+
+    resume = bool(st.session_state.get("resume_text"))
+    job = bool(st.session_state.get("selected_job") or jobinput.manual_job())
+
+    def state(done: bool, unlocked: bool) -> str:
+        if not unlocked:
+            return "locked"
+        return "done" if done else ""
+
+    return {
+        "Resume": state(resume, True),
+        "Find jobs": state(job, resume),
+        "Tailor resume": state(bool(st.session_state.get("tailored_resume")), resume and job),
+        "Cover letter": state(bool(st.session_state.get("cover_letter")), resume and job),
+        "Tracker": state(bool(st.session_state.get("applications")), True),
+    }
+
+
+_ICONS = {"done": "✅", "locked": "🔒", "": "○"}
+
+
+def step_label(step: str) -> str:
+    """'✅ 1 · Resume' — number, state, and name in one line."""
+    states = st.session_state.get("_step_states") or {}
+    icon = _ICONS.get(states.get(step, ""), "○")
+    return f"{icon}  {STEPS.index(step) + 1} · {step}"
+
+
 def next_step(current: str) -> str | None:
     idx = STEPS.index(current)
     return STEPS[idx + 1] if idx + 1 < len(STEPS) else None
