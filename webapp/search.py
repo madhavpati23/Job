@@ -35,16 +35,28 @@ def load_base_config() -> dict[str, Any]:
 
 
 def adzuna_credentials() -> tuple[str, str]:
-    """Adzuna keys come from secrets/env only — never from the committed config."""
+    """Resolve Adzuna keys: env, then Streamlit secrets, then local config.
+
+    The last fallback keeps the local web app and the CLI on one set of keys —
+    the CLI reads them straight out of the config file. It can only ever pick up
+    a gitignored config.local.json, since the committed config.json ships empty.
+    """
     app_id, app_key = os.environ.get("ADZUNA_APP_ID", ""), os.environ.get("ADZUNA_APP_KEY", "")
     if app_id and app_key:
         return app_id, app_key
+
     try:
         import streamlit as st
 
-        return str(st.secrets.get("ADZUNA_APP_ID", "")), str(st.secrets.get("ADZUNA_APP_KEY", ""))
+        app_id = str(st.secrets.get("ADZUNA_APP_ID", "")) or app_id
+        app_key = str(st.secrets.get("ADZUNA_APP_KEY", "")) or app_key
     except Exception:
-        return "", ""
+        pass
+    if app_id and app_key:
+        return app_id, app_key
+
+    local = load_config().get("adzuna") or {}
+    return str(local.get("app_id", "")), str(local.get("app_key", ""))
 
 
 def build_config(enabled: list[str], keywords: list[str], locations: list[str]) -> dict[str, Any]:
