@@ -6,6 +6,7 @@ import json
 
 import streamlit as st
 
+from jobapply_mcp import profile
 from webapp import nav, search
 
 def _defaults() -> dict:
@@ -46,31 +47,61 @@ def render() -> None:
         return
 
     d = _defaults()
+    derived = profile.derive_search(resume)
+
+    auto = st.toggle(
+        "Search from my resume",
+        value=True,
+        key="search_auto",
+        help="Reads the job titles and locations off your resume so you don't "
+        "have to type anything. Turn off to set them yourself.",
+    )
+
+    if auto:
+        titles = ", ".join(derived["keywords"])
+        places = ", ".join(derived["locations"])
+        if titles or places:
+            st.caption(
+                f"Using **{titles or 'no titles found'}**"
+                + (f" · in **{places}**" if places else " · anywhere")
+                + " — from your resume."
+            )
+        else:
+            st.caption(
+                "Couldn't read job titles off your resume, so this searches broadly "
+                "and ranks everything against it. Turn the toggle off to set terms yourself."
+            )
 
     with st.form("search_form"):
         col1, col2 = st.columns(2)
         with col1:
-            keywords = _csv(
-                st.text_input(
-                    "Search keywords",
-                    key="search_keywords",
-                    placeholder="e.g. quality engineer, LLM evaluation, SDET",
-                    help="Comma-separated job titles or skills to search for.",
+            if auto:
+                keywords = derived["keywords"]
+                locations = derived["locations"]
+                query = ""
+                st.caption("Keywords and locations come from your resume.")
+            else:
+                keywords = _csv(
+                    st.text_input(
+                        "Search keywords",
+                        key="search_keywords",
+                        placeholder="e.g. quality engineer, LLM evaluation, SDET",
+                        help="Comma-separated job titles or skills to search for.",
+                    )
                 )
-            )
-            locations = st.multiselect(
-                "Locations",
-                options=search.LOCATION_OPTIONS,
-                key="search_locations",
-                placeholder="Choose one or more, or type your own",
-                accept_new_options=True,
-                help="Leave empty to search everywhere, including remote.",
-            )
-            query = st.text_input(
-                "Required word (optional)",
-                key="search_query",
-                help="Drops any job whose title and description both lack this word.",
-            )
+                locations = st.multiselect(
+                    "Locations",
+                    options=search.LOCATION_OPTIONS,
+                    key="search_locations",
+                    placeholder="Choose one or more, or type your own",
+                    accept_new_options=True,
+                    help="Leave empty to search everywhere, including remote.",
+                )
+                query = st.text_input(
+                    "Required word (optional)",
+                    key="search_query",
+                    help="Drops any job whose title and description both lack this word.",
+                )
         with col2:
             min_score = st.slider("Minimum match score", 0, 100, d["min_score"])
             min_salary = st.number_input(
@@ -119,8 +150,8 @@ def render() -> None:
             return
         if not keywords:
             st.info(
-                "No keywords set — searching broadly and letting the resume match "
-                "decide. Add keywords above to narrow the pool."
+                "Searching broadly and letting the resume match decide. "
+                "Add keywords to narrow the pool."
             )
         with st.spinner("Fetching postings from every enabled source…"):
             try:
