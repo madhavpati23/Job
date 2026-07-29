@@ -71,25 +71,70 @@ def _complete(system: str, prompt: str, max_tokens: int = 20000) -> str:
     )
 
 
-_TAILOR_SYSTEM = """You are an expert resume editor. You rewrite an existing resume so it \
-targets one specific job posting.
+# Resume tailoring is an editing job, not a writing job. Left unconstrained,
+# models rewrite every line — which erases the candidate's voice, makes the
+# change-diff useless to review, and multiplies the chance of a subtly invented
+# claim. So the prompt states a change budget and demands untouched lines come
+# back byte-identical.
+_TAILOR_BASE = """You are an expert resume editor making TARGETED EDITS to an existing \
+resume. You are not rewriting it.
 
-Hard rules:
-- Never invent employers, job titles, dates, degrees, certifications, or metrics. \
-Every fact in your output must be traceable to the original resume.
-- You may re-order, re-word, re-emphasize, merge, and cut. You may adopt the posting's \
-vocabulary where it genuinely describes work the candidate already did.
-- Surface the most relevant experience earliest. Cut or compress what the posting \
-doesn't care about.
-- Keep it ATS-friendly: plain markdown, standard section headings, no tables or columns.
+The candidate wrote this resume. It is already theirs, in their voice, and most of it \
+is fine. Your job is to make the smallest set of changes that make it land for one \
+specific posting.
 
-Output the complete tailored resume in markdown and nothing else — no preamble, no \
-commentary, no explanation of your changes."""
+Absolute rules:
+- NEVER invent employers, titles, dates, degrees, certifications, tools, or metrics. \
+Every fact must be traceable to the original resume.
+- Lines you are not deliberately changing must be reproduced EXACTLY, character for \
+character. Do not "improve" wording, punctuation, or formatting on a line you had no \
+specific reason to touch.
+- Never delete a whole role, employer, or date range.
+- Keep it ATS-friendly: plain markdown, standard headings, no tables or columns.
+
+Prefer, in this order:
+1. Reordering — put the most relevant bullets and skills first.
+2. The headline/summary — this is where targeting a posting pays off most.
+3. Terminology — where the resume already describes the same work, use the posting's \
+word for it (e.g. "LLM output validation" -> "model evaluation" if that's their term).
+4. Only then, rewording a specific bullet that buries relevant experience.
+
+Do NOT paraphrase bullets that are already clear and relevant. A resume where every \
+line changed is a failure, not a thorough job.
+
+{budget}
+
+Output the complete resume in markdown and nothing else — no preamble, no commentary, \
+no notes about what you changed."""
+
+_BUDGETS = {
+    "Light": (
+        "CHANGE BUDGET: edit at most about 15% of the lines. Typically that is the "
+        "headline, the summary, and a handful of bullets. Everything else comes back "
+        "untouched and identical."
+    ),
+    "Balanced": (
+        "CHANGE BUDGET: edit at most about 30% of the lines. Reorder freely, rewrite "
+        "the summary, and revise the bullets that matter most for this posting. Leave "
+        "the remaining majority identical."
+    ),
+    "Thorough": (
+        "CHANGE BUDGET: edit at most about 60% of the lines. You may restructure "
+        "sections and rewrite bullets to match the posting, but still leave anything "
+        "already relevant and well-phrased exactly as written."
+    ),
+}
+
+STRENGTHS = list(_BUDGETS)
+DEFAULT_STRENGTH = "Light"
 
 
-def tailor_resume(resume: str, job: dict, extra_notes: str = "") -> str:
+def tailor_resume(
+    resume: str, job: dict, extra_notes: str = "", strength: str = DEFAULT_STRENGTH
+) -> str:
+    system = _TAILOR_BASE.format(budget=_BUDGETS.get(strength, _BUDGETS[DEFAULT_STRENGTH]))
     notes = f"\n\nAdditional instructions from the candidate:\n{extra_notes}" if extra_notes.strip() else ""
-    prompt = f"""Tailor this resume for the job posting below.
+    prompt = f"""Make targeted edits to this resume for the job posting below.
 
 <job_posting>
 Title: {job.get('title', '')}
@@ -102,7 +147,7 @@ Location: {job.get('location', '')}
 <current_resume>
 {resume}
 </current_resume>{notes}"""
-    return _complete(_TAILOR_SYSTEM, prompt, max_tokens=24000)
+    return _complete(system, prompt, max_tokens=24000)
 
 
 _LETTER_SYSTEM = """You write cover letters that hiring managers actually finish reading.

@@ -54,16 +54,27 @@ def render() -> None:
         return
 
     aihint.ready_badge()
-    notes = st.text_area(
-        "Anything else to emphasize? (optional)",
-        placeholder="e.g. Lead with the AI evaluation work; keep it to one page.",
-        key="tailor_notes",
+
+    col1, col2 = st.columns([1, 2])
+    strength = col1.radio(
+        "How much to change",
+        llm.STRENGTHS,
+        index=llm.STRENGTHS.index(llm.DEFAULT_STRENGTH),
+        key="tailor_strength",
+        help="Light keeps your wording and mostly reorders. Thorough rewrites more "
+        "of the document. Every level is barred from inventing facts.",
     )
+    with col2:
+        notes = st.text_area(
+            "Anything else to emphasize? (optional)",
+            placeholder="e.g. Lead with the AI evaluation work; keep it to one page.",
+            key="tailor_notes",
+        )
 
     if st.button("Generate tailored resume", type="primary"):
         with st.spinner("Rewriting your resume for this posting…"):
             try:
-                st.session_state.tailored_resume = llm.tailor_resume(resume, job, notes)
+                st.session_state.tailored_resume = llm.tailor_resume(resume, job, notes, strength)
             except Exception as exc:  # noqa: BLE001
                 llm.show_error(exc)
 
@@ -80,6 +91,15 @@ def render() -> None:
     c2.metric("Reworded", stats["reworded"])
     c3.metric("Removed", stats["removed"])
     c4.metric("Unchanged", stats["unchanged"])
+
+    touched = stats["added"] + stats["reworded"] + stats["removed"]
+    total = touched + stats["unchanged"]
+    if total and touched / total > 0.6:
+        st.warning(
+            f"This rewrote {touched / total:.0%} of your resume. That is more than "
+            "tailoring usually needs — it buries what actually changed and makes every "
+            "line something you have to re-verify. Try **Light** and regenerate."
+        )
 
     tab_edit, tab_diff = st.tabs(["Edit", "What changed"])
 
