@@ -44,8 +44,21 @@ class Job:
 
 
 def _strip_html(text: str) -> str:
-    text = re.sub(r"<[^>]+>", " ", text or "")
-    text = html.unescape(text)
+    """Reduce a posting's HTML to readable text.
+
+    Unescape *before* stripping: some boards (Greenhouse) serve HTML-escaped
+    markup, so stripping first removes nothing and the later unescape turns
+    &lt;div&gt; into a visible tag. Repeat once to catch double encoding.
+    """
+    text = text or ""
+    for _ in range(3):
+        before = text
+        text = html.unescape(text)
+        # Script/style bodies are never worth reading — drop them wholesale.
+        text = re.sub(r"<(script|style)\b[^>]*>.*?</\1>", " ", text, flags=re.I | re.S)
+        text = re.sub(r"<[^>]+>", " ", text)
+        if text == before:
+            break
     return re.sub(r"\s+", " ", text).strip()
 
 
