@@ -251,6 +251,134 @@ async def fetch_smartrecruiters(client: httpx.AsyncClient, company: str, limit: 
     return list(await asyncio.gather(*[_detail(p) for p in postings]))
 
 
+async def fetch_arbeitnow(client: httpx.AsyncClient, pages: int = 2) -> list[Job]:
+    """Arbeitnow public job board feed. No key, paginated, heavily EU-weighted."""
+    jobs: list[Job] = []
+    for page in range(1, pages + 1):
+        url = f"https://www.arbeitnow.com/api/job-board-api?page={page}"
+        try:
+            data = await _get_json(client, url)
+        except Exception:
+            break
+        results = data.get("data", [])
+        for j in results:
+            remote = " (Remote)" if j.get("remote") else ""
+            jobs.append(
+                Job(
+                    id=f"arbeitnow:{j.get('slug')}",
+                    source="arbeitnow",
+                    company=j.get("company_name", ""),
+                    title=j.get("title", ""),
+                    location=f"{j.get('location', '')}{remote}".strip(),
+                    url=j.get("url", ""),
+                    description=_strip_html(j.get("description", "")),
+                )
+            )
+        if not results:
+            break
+    return jobs
+
+
+async def fetch_jobicy(client: httpx.AsyncClient, count: int = 50, geo: str = "") -> list[Job]:
+    """Jobicy remote-jobs API. No key. Carries structured salary fields."""
+    url = f"https://jobicy.com/api/v2/remote-jobs?count={count}"
+    if geo:
+        url += f"&geo={geo}"
+    try:
+        data = await _get_json(client, url)
+    except Exception:
+        return []
+    jobs = []
+    for j in data.get("jobs", []):
+        # Jobicy reports non-annual salaries too; only annual figures are
+        # comparable with the rest of the pipeline.
+        annual = str(j.get("salaryPeriod", "")).lower() in ("annual", "yearly", "year", "")
+        jobs.append(
+            Job(
+                id=f"jobicy:{j.get('id')}",
+                source="jobicy",
+                company=j.get("companyName", ""),
+                title=j.get("jobTitle", ""),
+                location=j.get("jobGeo", "Remote"),
+                url=j.get("url", ""),
+                description=_strip_html(j.get("jobDescription") or j.get("jobExcerpt", "")),
+                salary_min=float(j.get("salaryMin") or 0) if annual else 0.0,
+                salary_max=float(j.get("salaryMax") or 0) if annual else 0.0,
+            )
+        )
+    return jobs
+
+
+async def fetch_himalayas(client: httpx.AsyncClient, limit: int = 50) -> list[Job]:
+    """Himalayas remote-jobs API. No key. Has no per-job id, so the URL is used."""
+    url = f"https://himalayas.app/jobs/api?limit={limit}"
+    try:
+        data = await _get_json(client, url)
+    except Exception:
+        return []
+    jobs = []
+    for j in data.get("jobs", []):
+        link = j.get("applicationLink") or j.get("guid") or ""
+        annual = str(j.get("salaryPeriod", "")).lower() in ("annual", "yearly", "year", "")
+        locations = j.get("locationRestrictions") or []
+        location = ", ".join(locations) if locations else "Remote"
+        jobs.append(
+            Job(
+                id=f"himalayas:{j.get('guid') or link}",
+                source="himalayas",
+                company=j.get("companyName", ""),
+                title=j.get("title", ""),
+                location=location,
+                url=link,
+                description=_strip_html(j.get("description") or j.get("excerpt", "")),
+                salary_min=float(j.get("minSalary") or 0) if annual else 0.0,
+                salary_max=float(j.get("maxSalary") or 0) if annual else 0.0,
+            )
+        )
+    return jobs
+
+
+async def fetch_usajobs(client: httpx.AsyncClient, cfg: dict[str, Any]) -> list[Job]:
+    """USAJOBS — every US federal opening. Free key from developer.usajobs.gov.
+
+    Auth is two headers (registered email + API key); returns [] without them.
+    """
+    email, api_key = cfg.get("email", ""), cfg.get("api_key", "")
+    if not email or not api_key:
+        return []
+    headers = {"Host": "data.usajobs.gov", "User-Agent": email, "Authorization-Key": api_key}
+    jobs: list[Job] = []
+    for keyword in (cfg.get("searches") or [""]):
+        params = {"ResultsPerPage": 100, "Keyword": keyword} if keyword else {"ResultsPerPage": 100}
+        try:
+            resp = await client.get("https://data.usajobs.gov/api/search",
+                                    params=params, headers=headers)
+            resp.raise_for_status()
+            data = resp.json()
+        except Exception:
+            continue
+        for item in (data.get("SearchResult") or {}).get("SearchResultItems", []):
+            d = item.get("MatchedObjectDescriptor") or {}
+            pay = (d.get("PositionRemuneration") or [{}])[0]
+            summary = (d.get("UserArea") or {}).get("Details", {}).get("JobSummary", "")
+            jobs.append(
+                Job(
+                    id=f"usajobs:{item.get('MatchedObjectId')}",
+                    source="usajobs",
+                    company=(d.get("OrganizationName") or d.get("DepartmentName") or ""),
+                    title=d.get("PositionTitle", ""),
+                    location=", ".join(
+                        l.get("LocationName", "") for l in (d.get("PositionLocation") or [])
+                    )[:120],
+                    url=d.get("PositionURI", ""),
+                    description=_strip_html(summary or d.get("QualificationSummary", "")),
+                    salary_min=float(pay.get("MinimumRange") or 0),
+                    salary_max=float(pay.get("MaximumRange") or 0),
+                )
+            )
+    return jobs
+
+
 async def fetch_adzuna(client: httpx.AsyncClient, cfg: dict[str, Any]) -> list[Job]:
     """Adzuna US aggregator — broad nationwide coverage with keyword + location.
 
@@ -321,6 +449,14 @@ async def fetch_all(config: dict[str, Any]) -> list[Job]:
                 tasks.append(fetch_muse(client, loc, pages))
         for co in config.get("smartrecruiters", []):
             tasks.append(fetch_smartrecruiters(client, co))
+        if config.get("arbeitnow"):
+            tasks.append(fetch_arbeitnow(client, config.get("arbeitnow_pages", 2)))
+        if config.get("jobicy"):
+            tasks.append(fetch_jobicy(client))
+        if config.get("himalayas"):
+            tasks.append(fetch_himalayas(client))
+        if config.get("usajobs"):
+            tasks.append(fetch_usajobs(client, config["usajobs"]))
         if config.get("adzuna"):
             tasks.append(fetch_adzuna(client, config["adzuna"]))
 

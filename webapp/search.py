@@ -25,8 +25,18 @@ SOURCE_LABELS = {
     "remotive": "Remotive",
     "muse": "The Muse (by city)",
     "smartrecruiters": "SmartRecruiters",
+    "jobicy": "Jobicy (remote)",
+    "himalayas": "Himalayas (remote)",
+    "arbeitnow": "Arbeitnow (mostly EU)",
+    "usajobs": "USAJOBS (US federal)",
     "adzuna": "Adzuna (nationwide US)",
 }
+
+# Sensible for a US-focused search out of the box. Arbeitnow is mostly German
+# and USAJOBS needs a key, so neither is on by default.
+DEFAULT_SOURCES = [
+    "greenhouse", "lever", "ashby", "remotive", "muse", "jobicy", "himalayas", "adzuna",
+]
 
 
 # Offered in the location picker. The Muse matches on exact strings like these,
@@ -73,6 +83,20 @@ def adzuna_credentials() -> tuple[str, str]:
     return str(local.get("app_id", "")), str(local.get("app_key", ""))
 
 
+def usajobs_credentials() -> tuple[str, str]:
+    """USAJOBS wants the email registered with the key, plus the key itself."""
+    email = os.environ.get("USAJOBS_EMAIL", "")
+    api_key = os.environ.get("USAJOBS_API_KEY", "")
+    if email and api_key:
+        return email, api_key
+    try:
+        import streamlit as st
+
+        return str(st.secrets.get("USAJOBS_EMAIL", "")), str(st.secrets.get("USAJOBS_API_KEY", ""))
+    except Exception:
+        return "", ""
+
+
 def build_config(enabled: list[str], keywords: list[str], locations: list[str]) -> dict[str, Any]:
     """Assemble a `fetch_all` config from the user's UI selections.
 
@@ -98,6 +122,17 @@ def build_config(enabled: list[str], keywords: list[str], locations: list[str]) 
         # An empty location string is a valid Muse query meaning "anywhere".
         cfg["muse_locations"] = locations or [""]
         cfg["muse_pages"] = base.get("muse_pages", 2)
+    if "jobicy" in enabled:
+        cfg["jobicy"] = True
+    if "himalayas" in enabled:
+        cfg["himalayas"] = True
+    if "arbeitnow" in enabled:
+        cfg["arbeitnow"] = True
+        cfg["arbeitnow_pages"] = 2
+    if "usajobs" in enabled:
+        email, api_key = usajobs_credentials()
+        if email and api_key:
+            cfg["usajobs"] = {"email": email, "api_key": api_key, "searches": keywords or [""]}
     if "adzuna" in enabled:
         app_id, app_key = adzuna_credentials()
         if app_id and app_key:

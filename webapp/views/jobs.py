@@ -96,13 +96,18 @@ def render() -> None:
             enabled = st.multiselect(
                 "Sources",
                 options=list(search.SOURCE_LABELS),
-                default=["greenhouse", "lever", "ashby", "remotive", "muse", "adzuna"],
+                default=search.DEFAULT_SOURCES,
                 format_func=lambda k: search.SOURCE_LABELS[k],
             )
             if "adzuna" in enabled and not all(search.adzuna_credentials()):
                 st.caption(
                     "Adzuna needs `ADZUNA_APP_ID` / `ADZUNA_APP_KEY` in secrets or env — "
                     "it'll be skipped without them. Free keys: developer.adzuna.com"
+                )
+            if "usajobs" in enabled and not all(search.usajobs_credentials()):
+                st.caption(
+                    "USAJOBS needs `USAJOBS_EMAIL` / `USAJOBS_API_KEY` in secrets or env — "
+                    "it'll be skipped without them. Free keys: developer.usajobs.gov"
                 )
 
         submitted = st.form_submit_button("Search jobs", type="primary")

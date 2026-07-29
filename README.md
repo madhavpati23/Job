@@ -21,9 +21,24 @@ Downloads are available as `.md` and `.docx` at every generation step.
 
 ### Job sources
 
-Only **public, automation-friendly APIs** — Greenhouse, Lever, Ashby, RemoteOK,
-Remotive, The Muse, SmartRecruiters, and Adzuna. LinkedIn and Indeed prohibit
+Only **public, automation-friendly APIs**. LinkedIn and Indeed prohibit
 automated access and are deliberately not scraped.
+
+| Source | Key needed | Notes |
+|--------|-----------|-------|
+| Greenhouse, Lever, Ashby, SmartRecruiters | no | Per-company ATS boards, configured in `config.json` |
+| RemoteOK, Remotive, Jobicy, Himalayas | no | Remote-focused aggregators |
+| The Muse | no | Searchable by city |
+| Arbeitnow | no | Mostly EU — off by default |
+| Adzuna | free | Nationwide US aggregation |
+| USAJOBS | free | Every US federal opening |
+
+### Application tracker
+
+The tracker lives in the browser session and is exported/imported as CSV, so
+nothing is retained server-side by default. Set `TRACKER_STORAGE = "true"` to
+let users opt into saving under a private random token carried in the URL —
+see `.streamlit/secrets.toml.example`.
 
 ### Ranking
 
