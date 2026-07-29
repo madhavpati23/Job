@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import streamlit as st
 
-from webapp import aihint, diffview, jobinput, llm, nav, resume_io
+from webapp import aihint, diffview, jobinput, llm, nav, resume_io, uihelp
 
 
 def show_gap_analysis(resume: str, job: dict) -> None:
@@ -105,9 +105,9 @@ def render() -> None:
 
     with tab_edit:
         st.caption("Edit freely before downloading — you are the final check on every claim.")
-        edited = st.text_area("Result", value=tailored, height=520, key="tailored_editor")
-        if edited != tailored:
-            st.session_state.tailored_resume = edited
+        uihelp.bound_text_area(
+            "Result", "tailored_resume", "tailored_editor", height=520
+        )
 
     with tab_diff:
         st.caption(

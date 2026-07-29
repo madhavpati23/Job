@@ -4,7 +4,22 @@ from __future__ import annotations
 
 import streamlit as st
 
-from webapp import nav, resume_io
+from webapp import nav, resume_io, uihelp
+
+
+def _adopt(text: str, name: str) -> None:
+    """Install a new resume and discard anything derived from the previous one.
+
+    A tailored resume or cover letter written against the old resume is not just
+    stale — the change-diff would compare the new resume to the old rewrite and
+    report nonsense.
+    """
+    previous = st.session_state.get("resume_text", "")
+    st.session_state.resume_text = text
+    st.session_state.resume_name = name
+    if previous and previous != text:
+        for key in ("tailored_resume", "cover_letter", "tailored_editor", "letter_editor"):
+            st.session_state.pop(key, None)
 
 
 def render() -> None:
@@ -24,17 +39,17 @@ def render() -> None:
         )
         if uploaded is not None and st.button("Extract text", type="primary"):
             try:
-                st.session_state.resume_text = resume_io.extract_text(uploaded)
-                st.session_state.resume_name = uploaded.name
-                st.success(f"Extracted {len(st.session_state.resume_text):,} characters.")
+                text = resume_io.extract_text(uploaded)
             except ValueError as exc:
                 st.error(str(exc))
+            else:
+                _adopt(text, uploaded.name)
+                st.success(f"Extracted {len(text):,} characters.")
 
     with tab_paste:
         pasted = st.text_area("Paste your resume", height=260, key="paste_box")
         if st.button("Use this text") and pasted.strip():
-            st.session_state.resume_text = pasted.strip()
-            st.session_state.resume_name = "pasted"
+            _adopt(pasted.strip(), "pasted")
             st.success("Resume saved.")
 
     resume = st.session_state.get("resume_text", "")
@@ -48,9 +63,9 @@ def render() -> None:
         "Extraction from PDFs is imperfect. Clean this up now — every later step "
         "reads from this text."
     )
-    edited = st.text_area("Resume text", value=resume, height=420, key="resume_editor")
-    if edited != resume:
-        st.session_state.resume_text = edited
+    edited = uihelp.bound_text_area(
+        "Resume text", "resume_text", "resume_editor", height=420
+    )
 
     col1, col2 = st.columns(2)
     col1.metric("Characters", f"{len(edited):,}")

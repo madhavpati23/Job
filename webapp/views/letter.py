@@ -5,7 +5,7 @@ from __future__ import annotations
 import streamlit as st
 
 from jobapply_mcp.drafting import build_scaffold
-from webapp import aihint, jobinput, llm, nav, resume_io
+from webapp import aihint, jobinput, llm, nav, resume_io, uihelp
 from webapp.views import tracker
 
 
@@ -63,9 +63,7 @@ def render() -> None:
 
     st.divider()
     st.subheader("Draft")
-    edited = st.text_area("Letter", value=letter, height=460, key="letter_editor")
-    if edited != letter:
-        st.session_state.cover_letter = edited
+    edited = uihelp.bound_text_area("Letter", "cover_letter", "letter_editor", height=460)
 
     slug = f"{job.get('company', 'letter')}".lower().replace(" ", "_")[:30]
     col1, col2 = st.columns(2)
