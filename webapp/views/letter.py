@@ -91,4 +91,4 @@ def render() -> None:
         )
         nav.goto("Tracker")
     with col2:
-        nav.next_button("Cover letter", label="Skip to Tracker →", type="secondary")
+        nav.next_button("Cover letter", label="Skip to Tracker →", kind="secondary")

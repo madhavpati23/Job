@@ -77,11 +77,11 @@ def next_button(
     current: str,
     label: str | None = None,
     key: str | None = None,
-    type: str = "primary",
+    kind: str = "primary",
 ) -> None:
     """Render a 'Next: <step>' button that advances the flow."""
     nxt = next_step(current)
     if not nxt:
         return
-    if st.button(label or f"Next: {nxt} →", type=type, key=key or f"next_{current}"):
+    if st.button(label or f"Next: {nxt} →", type=kind, key=key or f"next_{current}"):
         goto(nxt)

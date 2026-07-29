@@ -100,16 +100,29 @@ _YES_SPONSOR = re.compile(
 )
 
 
-# Salary figures in description text, e.g. "$230,000" or "$230,000 — $270,000".
-_SALARY = re.compile(r"\$\s?(\d{2,3}(?:,\d{3})|\d{3}(?:\.\d)?\s?[kK])")
+# Salary figures in description text: "$230,000", "$230,000 - $270,000",
+# "$95K", "$1.2M". Two-digit K ("$95K") and millions were previously missed,
+# so six-figure roles posted as "$95K-$120K" read as having no salary at all.
+_SALARY = re.compile(
+    r"\$\s?(\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d{1,4}(?:\.\d+)?\s?[kKmM]\b|\d{5,7}(?:\.\d+)?)"
+)
 
 
 def _extract_salary(text: str) -> float:
     """Largest plausible annual USD salary found in text (0 if none)."""
     best = 0.0
     for raw in _SALARY.findall(text or ""):
-        s = raw.replace(",", "").lower().strip()
-        val = float(s[:-1]) * 1000 if s.endswith("k") else float(s)
+        s = raw.replace(",", "").replace(" ", "").lower()
+        try:
+            if s.endswith("k"):
+                val = float(s[:-1]) * 1_000
+            elif s.endswith("m"):
+                val = float(s[:-1]) * 1_000_000
+            else:
+                val = float(s)
+        except ValueError:
+            continue
+        # Bound to plausible annual pay: filters hourly rates and headcounts.
         if 30_000 <= val <= 1_000_000:
             best = max(best, val)
     return best

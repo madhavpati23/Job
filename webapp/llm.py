@@ -9,7 +9,6 @@ from __future__ import annotations
 
 from jobapply_mcp import keywords as kw
 from webapp import providers
-from webapp.providers import ProviderError  # re-exported for callers
 
 
 def keywords(text: str, company: str = "", n: int = 25) -> list[str]:

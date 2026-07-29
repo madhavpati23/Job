@@ -20,8 +20,18 @@ FIELDS = ["date", "company", "role", "location", "url", "status"]
 STATUSES = ["applied", "screening", "interviewing", "offer", "rejected", "withdrawn"]
 
 
+def _autosave() -> None:
+    """Persist immediately when a token is active, so edits aren't lost."""
+    token = st.session_state.get("tracker_token", "")
+    if token and store.enabled():
+        try:
+            store.save(token, st.session_state.get("applications", []))
+        except Exception:  # noqa: BLE001 — saving is best-effort, never fatal
+            pass
+
+
 def add(company: str, role: str, location: str = "", url: str = "") -> None:
-    """Append an application, stamped with today's date."""
+    """Append an application, stamped with today's date, and persist it."""
     st.session_state.setdefault("applications", []).append(
         {
             "date": date.today().isoformat(),
@@ -32,6 +42,9 @@ def add(company: str, role: str, location: str = "", url: str = "") -> None:
             "status": "applied",
         }
     )
+    # Without this, an application logged from the cover-letter page stayed in
+    # memory only and vanished on refresh even with server saving switched on.
+    _autosave()
 
 
 def _normalize(row: dict) -> dict:
@@ -56,6 +69,13 @@ def _to_csv(rows: list[dict]) -> str:
 
 def _import_csv(uploaded) -> tuple[int, int]:
     """Merge an exported CSV back in. Returns (added, skipped_duplicates)."""
+    # Rewind: Streamlit reuses the upload object across reruns, so a second
+    # Import click would otherwise read an exhausted stream and import nothing.
+    if hasattr(uploaded, "seek"):
+        try:
+            uploaded.seek(0)
+        except (OSError, ValueError):
+            pass
     text = uploaded.read().decode("utf-8-sig", errors="replace")
     rows = [_normalize(r) for r in csv.DictReader(io.StringIO(text))]
     rows = [r for r in rows if r["company"] or r["role"]]
@@ -142,16 +162,6 @@ def _server_storage(rows: list[dict]) -> None:
                     st.session_state.tracker_loaded_at = updated
                     st.query_params[store.TOKEN_PARAM] = existing.strip()
                     st.rerun()
-
-
-def _autosave() -> None:
-    """Persist immediately when a token is active, so edits aren't lost."""
-    token = st.session_state.get("tracker_token", "")
-    if token and store.enabled():
-        try:
-            store.save(token, st.session_state.get("applications", []))
-        except Exception:  # noqa: BLE001 — saving is best-effort, never fatal
-            pass
 
 
 def render() -> None:

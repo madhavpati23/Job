@@ -47,6 +47,15 @@ def extract_text(uploaded_file) -> str:
     """
     name = getattr(uploaded_file, "name", "") or ""
     ext = name.rsplit(".", 1)[-1].lower() if "." in name else ""
+
+    # Streamlit hands back the same file object across reruns, and a stream that
+    # has already been read returns b"". Rewind so a second click re-reads it
+    # instead of reporting an empty file.
+    if hasattr(uploaded_file, "seek"):
+        try:
+            uploaded_file.seek(0)
+        except (OSError, ValueError):
+            pass
     data = uploaded_file.read() if hasattr(uploaded_file, "read") else bytes(uploaded_file)
 
     if ext not in SUPPORTED:

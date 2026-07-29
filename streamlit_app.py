@@ -40,6 +40,13 @@ def ai_settings(auto_expand: bool = False) -> None:
         )
         provider = providers.get(pid)
 
+        # Model lists are per-provider; keeping the previous provider's list
+        # would offer models the new one has never heard of.
+        if st.session_state.get("_llm_provider_seen") != pid:
+            st.session_state["_llm_provider_seen"] = pid
+            st.session_state.pop("llm_model_options", None)
+            st.session_state.pop("llm_model", None)
+
         if not providers.installed(provider):
             st.warning(f"`pip install {provider.package}` to use {provider.label}.")
 

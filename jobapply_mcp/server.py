@@ -7,7 +7,6 @@ Register in claude_desktop_config.json (see README) to use inside Claude.
 from __future__ import annotations
 
 import json
-from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 

@@ -56,8 +56,8 @@ _CORPORATE = {
     # Generic action verbs: every posting has them, they discriminate nothing.
     "perform", "performing", "conduct", "conducting", "maintain", "maintaining",
     "build", "building", "drive", "driving", "manage", "managing", "lead",
-    "leading", "develop", "developing", "create", "creating", "deliver",
-    "delivering", "collaborate", "collaborating", "partner", "own", "owning",
+    "develop", "developing", "create", "creating", "deliver",
+    "delivering", "collaborate", "collaborating", "own", "owning",
     "define", "defining", "implement", "implementing", "hands", "using", "use",
 }
 
