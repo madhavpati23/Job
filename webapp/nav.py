@@ -68,6 +68,32 @@ def step_label(step: str, states: dict[str, str]) -> str:
     return f"{icon}  {STEPS.index(step) + 1} · {step}"
 
 
+# Cleared when starting a new application: everything tied to one posting.
+# Deliberately excludes the resume, the search results, the tracker, and the AI
+# settings — re-uploading a resume or re-running a search to apply to a second
+# job would be the app wasting the user's time.
+_PER_JOB_KEYS = (
+    "selected_job",
+    "tailored_resume",
+    "cover_letter",
+    "tailor_notes",
+    "letter_notes",
+    "tailored_editor",
+    "letter_editor",
+    "job_source",
+    "manual_job_title",
+    "manual_job_company",
+    "manual_job_desc",
+)
+
+
+def start_new_application(destination: str = "Find jobs") -> None:
+    """Drop everything specific to the last posting and go pick another."""
+    for key in _PER_JOB_KEYS:
+        st.session_state.pop(key, None)
+    goto(destination)
+
+
 def next_step(current: str) -> str | None:
     idx = STEPS.index(current)
     return STEPS[idx + 1] if idx + 1 < len(STEPS) else None

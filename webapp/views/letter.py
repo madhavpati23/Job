@@ -92,3 +92,6 @@ def render() -> None:
         nav.goto("Tracker")
     with col2:
         nav.next_button("Cover letter", label="Skip to Tracker →", kind="secondary")
+
+    if st.button("Apply to another position →"):
+        nav.start_new_application()

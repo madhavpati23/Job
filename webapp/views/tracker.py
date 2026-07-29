@@ -14,7 +14,7 @@ from datetime import date
 
 import streamlit as st
 
-from webapp import store
+from webapp import nav, store
 
 FIELDS = ["date", "company", "role", "location", "url", "status"]
 STATUSES = ["applied", "screening", "interviewing", "offer", "rejected", "withdrawn"]
@@ -183,6 +183,19 @@ def render() -> None:
             "Nothing is stored on the server, so a refresh clears this. "
             "**Download the CSV to keep it, and re-upload it next visit to carry it forward.**"
         )
+
+    # The natural next action after logging one application is starting the
+    # next, so this sits above the fold rather than at the bottom of the table
+    # (which isn't rendered at all while the tracker is empty).
+    st.divider()
+    col1, col2 = st.columns([1, 2])
+    if col1.button("Apply to another position →", type="primary"):
+        nav.start_new_application()
+    col2.caption(
+        "Clears the selected job, tailored resume, and cover letter, then returns "
+        "to **Find jobs**. Your resume, search results, and this tracker are kept."
+    )
+    st.divider()
 
     with st.expander("Restore a previous tracker (upload CSV)"):
         uploaded = st.file_uploader(
