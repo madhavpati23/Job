@@ -118,10 +118,15 @@ def render() -> None:
                     placeholder="e.g. manufacturing, hardware, sales",
                 )
             )
+            us_only = st.checkbox(
+                "United States only", value=True,
+                help="Drops postings that name a country outside the US. Remote "
+                "and unspecified locations are kept.",
+            )
             exclude_locations = _csv(
                 st.text_input(
-                    "Exclude these locations", value=d["exclude_locations"],
-                    placeholder="e.g. india, united kingdom, canada",
+                    "Also exclude these locations", value=d["exclude_locations"],
+                    placeholder="e.g. new york, california",
                 )
             )
             enabled = st.multiselect(
@@ -166,6 +171,7 @@ def render() -> None:
             exclude=exclude,
             exclude_locations=exclude_locations,
             min_salary=min_salary or None,
+            us_only=us_only,
             limit=limit,
         )
         st.session_state.min_score = min_score

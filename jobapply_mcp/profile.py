@@ -129,17 +129,49 @@ def derive_titles(resume: str, limit: int = 4) -> list[str]:
     return out
 
 
-def derive_locations(resume: str, limit: int = 3) -> list[str]:
-    """Cities named in the resume, plus Remote when it advertises remote work."""
-    counts = Counter()
-    for city, state in _CITY_STATE.findall(resume or ""):
-        if state not in _STATES:
-            continue
-        if city.lower() in _TITLE_NOISE:
-            continue
-        counts[f"{city}, {state}"] += 1
+# Words that make "<X>, ST" an employer rather than a city — "Ascension Health,
+# MI" and "LPL Financial, NC" are companies with a state after them, and reading
+# them as places sends the search to cities that don't exist.
+_NOT_A_CITY = _COMPANY_HINTS | {
+    "health", "healthcare", "financial", "finance", "capital", "bank", "media",
+    "motors", "foods", "energy", "pharma", "pharmaceuticals", "medical",
+    "logistics", "airlines", "communications", "networks", "digital", "data",
+    "analytics", "ventures", "brands", "industries", "manufacturing", "retail",
+    "management", "associates", "group", "center", "centre", "solutions",
+    "international", "national", "american", "general", "federal", "state",
+}
 
-    locations = [c for c, _ in counts.most_common(limit)]
+
+def _looks_like_city(name: str) -> bool:
+    words = [w.lower().strip(".") for w in name.split()]
+    if any(w in _NOT_A_CITY for w in words):
+        return False
+    return not any(w in _ROLE_NOUNS or w in _TITLE_NOISE for w in words)
+
+
+def derive_locations(resume: str, limit: int = 3) -> list[str]:
+    """Where the candidate is, plus Remote when the resume mentions remote work.
+
+    The header is trusted first: a resume's own address sits in the first few
+    lines, whereas later "City, ST" matches are employer locations — or
+    employers themselves, when a company name precedes a state code.
+    """
+    lines = [l for l in (resume or "").splitlines() if l.strip()]
+    header = "\n".join(lines[:4])
+
+    def _found(text: str) -> list[str]:
+        out = []
+        for city, state in _CITY_STATE.findall(text or ""):
+            if state in _STATES and _looks_like_city(city):
+                out.append(f"{city}, {state}")
+        return out
+
+    locations = list(dict.fromkeys(_found(header)))[:limit]
+    if not locations:
+        # No address up top — fall back to the most frequently named place.
+        counts = Counter(_found(resume))
+        locations = [c for c, _ in counts.most_common(limit)]
+
     if _REMOTE.search(resume or ""):
         locations.append("Flexible / Remote")
     return locations

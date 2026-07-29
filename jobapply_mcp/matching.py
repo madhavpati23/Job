@@ -130,6 +130,55 @@ def _visa_signal(description: str) -> str:
     return "unknown"
 
 
+# Countries and regions that mark a posting as non-US. Matched on word
+# boundaries: a plain substring test drops "New Mexico" for "Mexico" and every
+# Atlanta job for "Georgia". "Georgia" and "Jordan" are omitted entirely —
+# they collide with a US state and a common name, and the cost of a false
+# exclusion (losing a real job) is worse than an occasional foreign result.
+_NON_US = (
+    "india", "united kingdom", "england", "scotland", "wales", "ireland",
+    "dublin", "london", "france", "germany", "spain", "portugal", "italy",
+    "netherlands", "belgium", "poland", "romania", "czech", "austria",
+    "switzerland", "sweden", "norway", "denmark", "finland", "greece",
+    "hungary", "bulgaria", "croatia", "serbia", "ukraine", "turkey",
+    "canada", "ontario", "quebec", "toronto", "vancouver", "montreal",
+    "australia", "sydney", "melbourne", "new zealand", "japan", "tokyo",
+    "china", "shanghai", "beijing", "singapore", "malaysia", "indonesia",
+    "philippines", "vietnam", "thailand", "korea", "hong kong", "taiwan",
+    "brazil", "brasil", "argentina", "chile", "colombia", "peru",
+    "mexico",  # the (?<!new ) guard keeps New Mexico
+    "south africa", "nigeria", "kenya", "egypt", "israel", "uae",
+    "dubai", "saudi", "qatar", "pakistan", "bangladesh", "sri lanka",
+    "emea", "apac", "latam", "europe", "asia", "africa",
+)
+_NON_US_RE = re.compile(
+    r"(?<!new )\b(" + "|".join(re.escape(c) for c in _NON_US) + r")\b", re.I
+)
+
+_US_SIGNALS = re.compile(
+    r"\b(usa|u\.s\.a?|united states|us[- ]based|remote[- ]us|"
+    r"al|ak|az|ar|ca|co|ct|de|fl|ga|hi|id|il|in|ia|ks|ky|la|me|md|ma|mi|mn|"
+    r"ms|mo|mt|ne|nv|nh|nj|nm|ny|nc|nd|oh|ok|or|pa|ri|sc|sd|tn|tx|ut|vt|va|"
+    r"wa|wv|wi|wy|dc)\b",
+    re.I,
+)
+
+
+def is_us_location(location: str) -> bool:
+    """Keep US and unknown/remote locations; drop clearly foreign ones.
+
+    Unknown is treated as keep — many postings omit a location entirely, and
+    silently hiding them would be worse than showing a few foreign results.
+    """
+    loc = (location or "").strip()
+    if not loc:
+        return True
+    if _NON_US_RE.search(loc):
+        # "Remote - US or Canada" is still open to a US applicant.
+        return bool(_US_SIGNALS.search(loc))
+    return True
+
+
 def score_job(resume: str, job: Job, must_have: list[str] | None = None) -> dict:
     """Return a fit score (0-100) plus the keywords driving it."""
     rvec = _vector(resume)
@@ -202,6 +251,7 @@ def rank_jobs(
     location: str | None = None,
     exclude_locations: list[str] | None = None,
     min_salary: float | None = None,
+    us_only: bool = False,
     limit: int = 10,
 ) -> list[dict]:
     """Filter by query/exclude/location, score against resume, return top `limit`.
@@ -224,6 +274,9 @@ def rank_jobs(
     if exclude:
         ex = [e.lower() for e in exclude]
         jobs = [j for j in jobs if not any(e in j.title.lower() for e in ex)]
+
+    if us_only:
+        jobs = [j for j in jobs if is_us_location(j.location)]
 
     if exclude_locations:
         xl = [e.lower() for e in exclude_locations]
