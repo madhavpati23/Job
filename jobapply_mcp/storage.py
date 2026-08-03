@@ -158,6 +158,7 @@ def save_seen(ids: set[str]) -> None:
 def append_digest(new_matches: list[dict]) -> None:
     """Prepend a timestamped block of new matches to new_matches.md."""
     from datetime import datetime
+    from .sources import age_days
     stamp = datetime.now().strftime("%Y-%m-%d %H:%M")
     lines = [f"## {stamp} — {len(new_matches)} new match(es)\n"]
     for m in new_matches:
@@ -165,6 +166,10 @@ def append_digest(new_matches: list[dict]) -> None:
         visa_tag = {"sponsors": " · ✅ sponsors visa", "no-sponsor": " · ❌ no sponsorship"}.get(visa, "")
         sal = m.get("salary", 0) or 0
         sal_tag = f" · 💰 ${int(sal/1000)}K" if sal else ""
+        # Source and age make an over-represented feed obvious at a glance.
+        age = age_days(m.get("posted_at", ""))
+        age_tag = f" · {int(age)}d old" if age is not None else ""
+        src_tag = f" · {m.get('source', '')}" if m.get("source") else ""
         # `apply` resolves aggregator links and detects the ATS, so the command
         # works for any source — it autofills structured forms (Greenhouse/Lever/
         # Ashby/Workable) and opens the rest for manual completion.
@@ -172,7 +177,7 @@ def append_digest(new_matches: list[dict]) -> None:
         hint = "autofills" if structured else "opens form; may need manual fill"
         lines.append(
             f"- **[{m['score']}]** {m['title'].strip()} @ {m['company']} "
-            f"({m.get('location','') or 'n/a'}){sal_tag}{visa_tag}  \n"
+            f"({m.get('location','') or 'n/a'}){sal_tag}{visa_tag}{src_tag}{age_tag}  \n"
             f"  {m['url']}  \n"
             f"  apply: `python -m jobapply_mcp.cli apply {m['id']}`  ({hint})"
         )

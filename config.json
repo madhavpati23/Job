@@ -33,6 +33,10 @@
     "exclude_locations": ["india", "united kingdom", "canada", "germany", "australia"],
     "min_score": 15,
     "min_salary": 0,
+    "_max_age_days": "Drop postings older than this many days. Keeps a rotating aggregator's stale backlog out of the 'new since last run' set. 0 disables the check; postings whose source reports no date are always kept.",
+    "max_age_days": 14,
+    "_per_source": "Cap on results from any one source, so a high-volume aggregator can't fill the whole digest.",
+    "per_source": 5,
     "limit": 20
   }
 }

@@ -60,7 +60,20 @@ async def _watch(args: argparse.Namespace) -> None:
 
     seen = storage.load_seen()
     all_ids = {j.id for j in jobs}
-    fresh = [j for j in jobs if j.id not in seen]
+
+    # Unseen alone isn't enough: an aggregator like Adzuna rotates its result
+    # slate every run, so long-stale postings keep arriving with ids we've never
+    # recorded. Require the posting to also be recent when its source reports a
+    # date; an unknown date stays eligible rather than being silently dropped.
+    max_age = w.get("max_age_days", 14)
+
+    def _recent(job: sources.Job) -> bool:
+        if not max_age:
+            return True
+        age = sources.age_days(job.posted_at)
+        return age is None or age <= max_age
+
+    fresh = [j for j in jobs if j.id not in seen and _recent(j)]
 
     resume = storage.load_resume()
     ranked = matching.rank_jobs(
@@ -70,6 +83,7 @@ async def _watch(args: argparse.Namespace) -> None:
         location=w.get("location"),
         exclude_locations=w.get("exclude_locations"),
         min_salary=w.get("min_salary"),
+        per_source=w.get("per_source", 5),
         limit=w.get("limit", 15),
     )
     min_score = w.get("min_score", 0)

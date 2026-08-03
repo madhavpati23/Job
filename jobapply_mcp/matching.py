@@ -265,6 +265,7 @@ def rank_jobs(
     exclude_locations: list[str] | None = None,
     min_salary: float | None = None,
     us_only: bool = False,
+    per_source: int | None = None,
     limit: int = 10,
 ) -> list[dict]:
     """Filter by query/exclude/location, score against resume, return top `limit`.
@@ -279,6 +280,9 @@ def rank_jobs(
         exclude_locations: drop a job if its location contains any of these
             (e.g. country names to keep the search US-focused). A job is kept
             despite a match if it's also marked remote/worldwide.
+        per_source: keep at most this many results from any one source. Without
+            it a high-volume keyword aggregator (Adzuna) crowds out the handful
+            of hits from company boards, which are the better leads.
     """
     if query:
         q = query.lower()
@@ -314,4 +318,17 @@ def rank_jobs(
         scored.append({**j.to_dict(), **s, "description": j.description[:400]})
 
     scored.sort(key=lambda d: d["score"], reverse=True)
+
+    if per_source:
+        # Applied after sorting, so each source keeps its own best entries.
+        kept: list[dict] = []
+        counts: Counter = Counter()
+        for d in scored:
+            src = d.get("source", "")
+            if counts[src] >= per_source:
+                continue
+            counts[src] += 1
+            kept.append(d)
+        scored = kept
+
     return scored[:limit]

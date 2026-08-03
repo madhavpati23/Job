@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import html
 import re
+from datetime import datetime, timezone
 from dataclasses import dataclass, asdict
 from typing import Any
 
@@ -38,9 +39,52 @@ class Job:
     description: str = ""
     salary_min: float = 0.0
     salary_max: float = 0.0
+    # When the posting went live, as an ISO-8601 UTC string. "" when the source
+    # doesn't report one — treated as "age unknown", never as "old".
+    posted_at: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
+
+
+def _iso_date(value: Any) -> str:
+    """Normalize a source's date field to an ISO-8601 UTC string.
+
+    Sources report dates as ISO strings (with or without a 'Z'), epoch seconds,
+    or epoch milliseconds. Anything unparseable becomes "" so callers can tell
+    "no date" apart from "old".
+    """
+    if value in (None, "", 0):
+        return ""
+    if isinstance(value, (int, float)):
+        # Lever and friends use milliseconds; anything past year ~2286 in
+        # seconds is really a millisecond timestamp.
+        secs = value / 1000 if value > 10_000_000_000 else value
+        try:
+            return datetime.fromtimestamp(secs, timezone.utc).isoformat()
+        except (OverflowError, OSError, ValueError):
+            return ""
+    text = str(value).strip().replace("Z", "+00:00")
+    try:
+        dt = datetime.fromisoformat(text)
+    except ValueError:
+        return ""
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc).isoformat()
+
+
+def age_days(posted_at: str) -> float | None:
+    """Days since a posting went live, or None when the date is unknown."""
+    if not posted_at:
+        return None
+    try:
+        dt = datetime.fromisoformat(posted_at)
+    except ValueError:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return (datetime.now(timezone.utc) - dt).total_seconds() / 86400
 
 
 def _strip_html(text: str) -> str:
@@ -86,6 +130,7 @@ async def fetch_greenhouse(client: httpx.AsyncClient, token: str) -> list[Job]:
                 location=(j.get("location") or {}).get("name", ""),
                 url=j.get("absolute_url", ""),
                 description=_strip_html(j.get("content", "")),
+                posted_at=_iso_date(j.get("first_published") or j.get("updated_at")),
             )
         )
     return jobs
@@ -110,6 +155,7 @@ async def fetch_lever(client: httpx.AsyncClient, token: str) -> list[Job]:
                 location=cats.get("location", ""),
                 url=j.get("hostedUrl", ""),
                 description=_strip_html(j.get("descriptionPlain") or j.get("description", "")),
+                posted_at=_iso_date(j.get("createdAt")),
             )
         )
     return jobs
@@ -133,6 +179,7 @@ async def fetch_ashby(client: httpx.AsyncClient, token: str) -> list[Job]:
                 location=j.get("location", ""),
                 url=j.get("jobUrl", ""),
                 description=_strip_html(j.get("descriptionPlain") or j.get("descriptionHtml", "")),
+                posted_at=_iso_date(j.get("publishedAt")),
             )
         )
     return jobs
@@ -158,6 +205,7 @@ async def fetch_remoteok(client: httpx.AsyncClient) -> list[Job]:
                 location=j.get("location", "Remote"),
                 url=j.get("url", ""),
                 description=_strip_html(j.get("description", "")),
+                posted_at=_iso_date(j.get("date") or j.get("epoch")),
             )
         )
     return jobs
@@ -183,6 +231,7 @@ async def fetch_remotive(client: httpx.AsyncClient, search: str = "") -> list[Jo
                 location=j.get("candidate_required_location", "Remote"),
                 url=j.get("url", ""),
                 description=_strip_html(j.get("description", "")),
+                posted_at=_iso_date(j.get("publication_date")),
             )
         )
     return jobs
@@ -216,6 +265,7 @@ async def fetch_muse(client: httpx.AsyncClient, location: str, pages: int = 1) -
                     location=locs or location,
                     url=(j.get("refs") or {}).get("landing_page", ""),
                     description=_strip_html(j.get("contents", "")),
+                    posted_at=_iso_date(j.get("publication_date")),
                 )
             )
         if page + 1 >= data.get("page_count", 1):
@@ -258,6 +308,7 @@ async def fetch_smartrecruiters(client: httpx.AsyncClient, company: str, limit: 
             location=loc_str,
             url=posting.get("ref", "") or f"https://jobs.smartrecruiters.com/{company}/{pid}",
             description=desc,
+            posted_at=_iso_date(posting.get("releasedDate")),
         )
 
     postings = data.get("content", [])[:limit]
@@ -285,6 +336,7 @@ async def fetch_arbeitnow(client: httpx.AsyncClient, pages: int = 2) -> list[Job
                     location=f"{j.get('location', '')}{remote}".strip(),
                     url=j.get("url", ""),
                     description=_strip_html(j.get("description", "")),
+                    posted_at=_iso_date(j.get("created_at")),
                 )
             )
         if not results:
@@ -317,6 +369,7 @@ async def fetch_jobicy(client: httpx.AsyncClient, count: int = 50, geo: str = ""
                 description=_strip_html(j.get("jobDescription") or j.get("jobExcerpt", "")),
                 salary_min=float(j.get("salaryMin") or 0) if annual else 0.0,
                 salary_max=float(j.get("salaryMax") or 0) if annual else 0.0,
+                posted_at=_iso_date(j.get("pubDate")),
             )
         )
     return jobs
@@ -346,6 +399,7 @@ async def fetch_himalayas(client: httpx.AsyncClient, limit: int = 50) -> list[Jo
                 description=_strip_html(j.get("description") or j.get("excerpt", "")),
                 salary_min=float(j.get("minSalary") or 0) if annual else 0.0,
                 salary_max=float(j.get("maxSalary") or 0) if annual else 0.0,
+                posted_at=_iso_date(j.get("pubDate")),
             )
         )
     return jobs
@@ -387,6 +441,7 @@ async def fetch_usajobs(client: httpx.AsyncClient, cfg: dict[str, Any]) -> list[
                     description=_strip_html(summary or d.get("QualificationSummary", "")),
                     salary_min=float(pay.get("MinimumRange") or 0),
                     salary_max=float(pay.get("MaximumRange") or 0),
+                    posted_at=_iso_date(d.get("PublicationStartDate")),
                 )
             )
     return jobs
@@ -434,6 +489,7 @@ async def fetch_adzuna(client: httpx.AsyncClient, cfg: dict[str, Any]) -> list[J
                         description=_strip_html(j.get("description", "")),
                         salary_min=float(j.get("salary_min") or 0),
                         salary_max=float(j.get("salary_max") or 0),
+                        posted_at=_iso_date(j.get("created")),
                     )
                 )
             if not results:
