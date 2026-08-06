@@ -43,6 +43,7 @@ def _location_options(derived: list[str]) -> list[str]:
 
 
 def render() -> None:
+    nav.back_button("Find jobs")
     st.header("2 · Find matching jobs")
 
     resume = st.session_state.get("resume_text", "")
