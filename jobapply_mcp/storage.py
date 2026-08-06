@@ -31,15 +31,33 @@ def _ensure_dirs() -> None:
     DRAFTS.mkdir(exist_ok=True)
 
 
+def _read_json(path: Path) -> dict[str, Any]:
+    if not path.exists():
+        return {}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return {}
+
+
 def load_config() -> dict[str, Any]:
-    """Load config.local.json if you have one, else the committed config.json."""
-    for path in (LOCAL_CONFIG_PATH, CONFIG_PATH):
-        if path.exists():
-            try:
-                return json.loads(path.read_text(encoding="utf-8"))
-            except json.JSONDecodeError:
-                continue
-    return {"remoteok": True}
+    """Merge config.local.json over the committed config.json.
+
+    Merging rather than replacing matters: a local config written months ago
+    would otherwise hide every source added since, because the file simply has
+    no key for them. Your local values still win wherever you set one; keys you
+    never mentioned fall through to the shipped defaults.
+    """
+    merged = _read_json(CONFIG_PATH) or {"remoteok": True}
+    local = _read_json(LOCAL_CONFIG_PATH)
+    for key, value in local.items():
+        # One level of merge is enough — the nested dicts here (adzuna, watch)
+        # are settings groups where a partial local override is the useful case.
+        if isinstance(value, dict) and isinstance(merged.get(key), dict):
+            merged[key] = {**merged[key], **value}
+        else:
+            merged[key] = value
+    return merged
 
 
 def save_resume(text: str) -> None:

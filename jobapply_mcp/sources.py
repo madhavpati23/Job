@@ -315,6 +315,68 @@ async def fetch_smartrecruiters(client: httpx.AsyncClient, company: str, limit: 
     return list(await asyncio.gather(*[_detail(p) for p in postings]))
 
 
+async def fetch_workday(
+    client: httpx.AsyncClient, board: dict[str, Any], searches: list[str], detail_limit: int = 15
+) -> list[Job]:
+    """Workday's public career-site API — a large share of US enterprise jobs.
+
+    Each employer self-hosts at `<tenant>.<dc>.myworkdayjobs.com`, so a board is
+    identified by tenant, data centre, and site name. The list endpoint returns
+    titles only, so descriptions cost one request per posting; `detail_limit`
+    bounds that, since a single tenant can advertise tens of thousands of roles.
+    """
+    tenant, dc, site = board.get("tenant"), board.get("dc", "wd1"), board.get("site")
+    if not tenant or not site:
+        return []
+    base = f"https://{tenant}.{dc}.myworkdayjobs.com/wday/cxs/{tenant}/{site}"
+    headers = {"User-Agent": USER_AGENT, "Accept": "application/json"}
+
+    seen: dict[str, dict] = {}
+    for term in (searches or [""]):
+        try:
+            resp = await client.post(
+                f"{base}/jobs",
+                json={"appliedFacets": {}, "limit": 20, "offset": 0, "searchText": term},
+                headers=headers,
+            )
+            resp.raise_for_status()
+            postings = resp.json().get("jobPostings", [])
+        except Exception:
+            continue
+        for p in postings:
+            path = p.get("externalPath")
+            if path and path not in seen:
+                seen[path] = p
+        if len(seen) >= detail_limit:
+            break
+
+    async def _detail(path: str, listing: dict) -> Job | None:
+        try:
+            r = await client.get(f"{base}{path}", headers=headers)
+            info = r.json().get("jobPostingInfo", {}) if r.status_code == 200 else {}
+        except Exception:
+            info = {}
+        title = info.get("title") or listing.get("title", "")
+        if not title:
+            return None
+        return Job(
+            id=f"workday:{tenant}:{info.get('id') or path}",
+            source="workday",
+            company=tenant,
+            title=title,
+            location=info.get("location") or listing.get("locationsText", ""),
+            url=info.get("externalUrl") or f"https://{tenant}.{dc}.myworkdayjobs.com/{site}{path}",
+            description=_strip_html(info.get("jobDescription", "")),
+            # Workday reports age as prose ("Posted 3 Days Ago"), not a date, so
+            # it stays unknown — which the freshness filter treats as "keep".
+            posted_at=_iso_date(info.get("startDate", "")),
+        )
+
+    items = list(seen.items())[:detail_limit]
+    results = await asyncio.gather(*[_detail(p, l) for p, l in items], return_exceptions=True)
+    return [j for j in results if isinstance(j, Job)]
+
+
 async def fetch_arbeitnow(client: httpx.AsyncClient, pages: int = 2) -> list[Job]:
     """Arbeitnow public job board feed. No key, paginated, heavily EU-weighted."""
     jobs: list[Job] = []
@@ -518,6 +580,8 @@ async def fetch_all(config: dict[str, Any]) -> list[Job]:
                 tasks.append(fetch_muse(client, loc, pages))
         for co in config.get("smartrecruiters", []):
             tasks.append(fetch_smartrecruiters(client, co))
+        for board in config.get("workday", []):
+            tasks.append(fetch_workday(client, board, config.get("workday_searches") or []))
         if config.get("arbeitnow"):
             tasks.append(fetch_arbeitnow(client, config.get("arbeitnow_pages", 2)))
         if config.get("jobicy"):

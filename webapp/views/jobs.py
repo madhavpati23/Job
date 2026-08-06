@@ -149,12 +149,28 @@ def render() -> None:
                     placeholder="e.g. new york, california",
                 )
             )
-            enabled = st.multiselect(
-                "Sources",
-                options=list(search.SOURCE_LABELS),
-                default=search.DEFAULT_SOURCES,
-                format_func=lambda k: search.SOURCE_LABELS[k],
+            # Most people neither know nor care what Ashby is; the default set is
+            # the right answer for almost everyone. Keep the control, but don't
+            # make everyone scroll past a wall of chips to reach the rest.
+            pick_sources = st.checkbox(
+                "Choose job sources myself", value=False, key="search_pick_sources",
+                help="Off means the recommended set. Turn on to add Workday, "
+                "USAJOBS, or EU boards, or to narrow the search.",
             )
+            if pick_sources:
+                enabled = st.multiselect(
+                    "Sources",
+                    options=list(search.SOURCE_LABELS),
+                    default=search.DEFAULT_SOURCES,
+                    format_func=lambda k: search.SOURCE_LABELS[k],
+                )
+            else:
+                enabled = search.DEFAULT_SOURCES
+                st.caption(
+                    f"Searching {len(enabled)} sources: "
+                    + ", ".join(search.SOURCE_LABELS[k] for k in enabled)
+                    + "."
+                )
             if "adzuna" in enabled and not all(search.adzuna_credentials()):
                 st.caption(
                     "Adzuna needs `ADZUNA_APP_ID` / `ADZUNA_APP_KEY` in secrets or env — "

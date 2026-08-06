@@ -25,6 +25,7 @@ SOURCE_LABELS = {
     "remotive": "Remotive",
     "muse": "The Muse (by city)",
     "smartrecruiters": "SmartRecruiters",
+    "workday": "Workday (large US employers)",
     "jobicy": "Jobicy (remote)",
     "himalayas": "Himalayas (remote)",
     "arbeitnow": "Arbeitnow (mostly EU)",
@@ -122,6 +123,9 @@ def build_config(enabled: list[str], keywords: list[str], locations: list[str]) 
         # An empty location string is a valid Muse query meaning "anywhere".
         cfg["muse_locations"] = locations or [""]
         cfg["muse_pages"] = base.get("muse_pages", 2)
+    if "workday" in enabled:
+        cfg["workday"] = base.get("workday", [])
+        cfg["workday_searches"] = keywords or [""]
     if "jobicy" in enabled:
         cfg["jobicy"] = True
     if "himalayas" in enabled:

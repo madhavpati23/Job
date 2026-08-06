@@ -16,6 +16,19 @@
 
   "smartrecruiters": [],
 
+  "_workday": "Large US employers self-host on Workday. Find tenant/dc/site in the careers URL: https://<tenant>.<dc>.myworkdayjobs.com/<site>. Verified working as of this commit.",
+  "workday": [
+    {"tenant": "cvshealth", "dc": "wd1", "site": "CVS_Health_Careers"},
+    {"tenant": "nvidia", "dc": "wd5", "site": "NVIDIAExternalCareerSite"},
+    {"tenant": "target", "dc": "wd5", "site": "targetcareers"},
+    {"tenant": "mastercard", "dc": "wd1", "site": "CorporateCareers"},
+    {"tenant": "hpe", "dc": "wd5", "site": "Jobsathpe"},
+    {"tenant": "kla", "dc": "wd1", "site": "Search"},
+    {"tenant": "adobe", "dc": "wd5", "site": "external_experienced"},
+    {"tenant": "paypal", "dc": "wd1", "site": "jobs"},
+    {"tenant": "workday", "dc": "wd5", "site": "Workday"}
+  ],
+
   "adzuna": {
     "_help": "Free keys at https://developer.adzuna.com. The app reads them from ADZUNA_APP_ID / ADZUNA_APP_KEY (env or Streamlit secrets) — never commit real keys here.",
     "app_id": "",
