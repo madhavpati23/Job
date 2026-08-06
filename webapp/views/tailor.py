@@ -134,5 +134,7 @@ def render() -> None:
         mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     )
 
+    uihelp.apply_block(job, "tailor")
+
     st.divider()
     nav.next_button("Tailor resume")
