@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from collections import Counter
 
 import streamlit as st
 
@@ -54,6 +55,19 @@ def render() -> None:
 
     d = _defaults()
     derived = profile.derive_search(resume)
+
+    # Adzuna is the only source that searches every US employer. Without it the
+    # app still returns jobs, but they come mostly from a fixed set of company
+    # boards — which looks like a nationwide search without being one. Say so
+    # here rather than in a caption buried inside a collapsed expander.
+    if not all(search.adzuna_credentials()):
+        st.warning(
+            "**Nationwide search is limited.** Results will come mostly from a "
+            "fixed set of company career pages. For true US-wide coverage, add "
+            "free [Adzuna API keys](https://developer.adzuna.com) as "
+            "`ADZUNA_APP_ID` / `ADZUNA_APP_KEY` in app secrets.",
+            icon="🌎",
+        )
 
     auto = st.toggle(
         "Search from my resume",
@@ -222,6 +236,8 @@ def render() -> None:
         )
         st.session_state.min_score = min_score
         st.session_state.fetched_count = len(jobs)
+        st.session_state.source_counts = Counter(j.source for j in jobs)
+        st.session_state.employer_count = len({j.company.lower() for j in jobs if j.company})
 
     results = st.session_state.get("results")
     if results is None:
@@ -230,10 +246,19 @@ def render() -> None:
 
     threshold = st.session_state.get("min_score", 0)
     shown = [r for r in results if r["score"] >= threshold]
+    employers = st.session_state.get("employer_count", 0)
     st.success(
-        f"Fetched {st.session_state.get('fetched_count', 0):,} postings · "
-        f"{len(shown)} above a score of {threshold}."
+        f"Fetched {st.session_state.get('fetched_count', 0):,} postings from "
+        f"{employers:,} employers · {len(shown)} above a score of {threshold}."
     )
+    counts = st.session_state.get("source_counts")
+    if counts:
+        # Where results came from decides how much breadth they really represent,
+        # so it shouldn't take reading the code to find out.
+        breakdown = " · ".join(
+            f"{search.SOURCE_LABELS.get(k, k)}: {v:,}" for k, v in counts.most_common()
+        )
+        st.caption(f"Sources — {breakdown}")
     if shown:
         st.caption("Click a row to read it, then **Select this job & continue** to tailor against it.")
 

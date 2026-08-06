@@ -149,9 +149,12 @@ def build_config(
         cfg["remotive_searches"] = keywords or [""]
     if "muse" in enabled:
         cfg["muse"] = True
-        # An empty location string is a valid Muse query meaning "anywhere".
-        cfg["muse_locations"] = locations or [""]
-        cfg["muse_pages"] = base.get("muse_pages", 2)
+        # The Muse searches one city per request and has no nationwide query, so
+        # "no location chosen" means sweeping every metro we know. That is the
+        # only keyless source giving real US-wide breadth — a single empty-string
+        # query returns one page and looks nationwide without being it.
+        cfg["muse_locations"] = locations or LOCATION_OPTIONS
+        cfg["muse_pages"] = base.get("muse_pages", 3)
     if "workday" in enabled:
         cfg["workday"] = base.get("workday", [])
         cfg["workday_searches"] = keywords or [""]
