@@ -10,6 +10,7 @@ from webapp.views import tracker
 
 
 def render() -> None:
+    nav.back_button("Cover letter")
     st.header("4 · Cover letter")
 
     resume = st.session_state.get("resume_text", "")
@@ -79,17 +80,38 @@ def render() -> None:
 
     st.divider()
     st.markdown("**Applied?** Log it so you can track and export your applications.")
+
+    # Logging used to jump straight to the Tracker, which hid the apply link
+    # below before it could be used. It now stays put and confirms in place, so
+    # the page still works if you log first and apply second.
+    job_key = job.get("id") or f"{job.get('company', '')}|{job.get('title', '')}"
+    logged = st.session_state.get("logged_job_key") == job_key
+
     col1, col2 = st.columns(2)
-    if col1.button("Log this as applied & continue →", type="primary"):
+    if logged:
+        col1.success("Logged in your tracker.")
+    elif col1.button("Log this as applied", type="primary"):
         tracker.add(
             company=job.get("company", ""),
             role=job.get("title", "").strip(),
             location=job.get("location", ""),
             url=job.get("url", ""),
         )
-        nav.goto("Tracker")
+        st.session_state["logged_job_key"] = job_key
+        st.rerun()
     with col2:
-        nav.next_button("Cover letter", label="Skip to Tracker →", kind="secondary")
+        nav.next_button("Cover letter", label="Go to Tracker →", kind="secondary")
 
+    apply_url = (job.get("url") or "").strip()
+    if apply_url:
+        st.divider()
+        company = job.get("company") or "the employer"
+        st.markdown(f"**Apply at {company}** — opens the posting in a new tab.")
+        st.link_button("Open the posting ↗", apply_url, type="primary")
+        # Shown in full so the destination is visible before clicking, and so a
+        # manually-entered posting can be copied to another device.
+        st.caption(apply_url)
+
+    st.divider()
     if st.button("Apply to another position →"):
         nav.start_new_application()
