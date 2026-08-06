@@ -34,10 +34,13 @@ SOURCE_LABELS = {
     "adzuna": "Adzuna (nationwide US)",
 }
 
-# Sensible for a US-focused search out of the box. Arbeitnow is mostly German
-# and USAJOBS needs a key, so neither is on by default.
+# Sensible for a US-focused search out of the box. Workday and SmartRecruiters carry
+# a lot of large US employers, so they belong here rather than behind the opt-in.
+# Left off: Arbeitnow is mostly German, USAJOBS needs a key and is citizen-only, and
+# RemoteOK overlaps heavily with the other remote boards.
 DEFAULT_SOURCES = [
-    "greenhouse", "lever", "ashby", "remotive", "muse", "jobicy", "himalayas", "adzuna",
+    "greenhouse", "lever", "ashby", "workday", "smartrecruiters",
+    "remotive", "muse", "jobicy", "himalayas", "adzuna",
 ]
 
 
