@@ -23,6 +23,7 @@ def show_gap_analysis(resume: str, job: dict) -> None:
 
 
 def render() -> None:
+    nav.back_button("Tailor resume")
     st.header("3 · Tailor your resume")
 
     resume = st.session_state.get("resume_text", "")
@@ -132,6 +133,8 @@ def render() -> None:
         file_name=f"resume_{slug}.docx",
         mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     )
+
+    uihelp.apply_block(job, "tailor")
 
     st.divider()
     nav.next_button("Tailor resume")
