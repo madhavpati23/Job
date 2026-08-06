@@ -20,7 +20,6 @@ def _defaults() -> dict:
     watch = search.load_base_config().get("watch") or {}
     return {
         "exclude": ", ".join(watch.get("exclude") or []),
-        "exclude_locations": ", ".join(watch.get("exclude_locations") or []),
         "min_salary": int(watch.get("min_salary") or 0),
         "min_score": int(watch.get("min_score") or 15),
         "limit": int(watch.get("limit") or 25),
@@ -139,13 +138,6 @@ def render() -> None:
                     placeholder="e.g. manufacturing, hardware, sales",
                 )
             )
-            exclude_locations = _csv(
-                st.text_input(
-                    "Skip these locations",
-                    value="" if us_only else d["exclude_locations"],
-                    placeholder="e.g. new york, california",
-                )
-            )
             companies = _csv(
                 st.text_input(
                     "Also search these companies by name",
@@ -204,7 +196,6 @@ def render() -> None:
             jobs,
             query=query or None,
             exclude=exclude,
-            exclude_locations=exclude_locations,
             min_salary=min_salary or None,
             us_only=us_only,
             locations=locations,
