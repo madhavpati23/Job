@@ -177,6 +177,36 @@ _US_SIGNALS = re.compile(
 )
 
 
+_REMOTE_WORDS = ("remote", "anywhere", "worldwide", "flexible", "distributed")
+
+
+def matches_locations(job_location: str, wanted: list[str]) -> bool:
+    """Is this job in one of the places the user asked for?
+
+    Remote roles always qualify — they're location-independent, and someone who
+    picked Houston still wants the remote job. Postings with no stated location
+    are kept too: many sources omit it, and hiding them loses more real jobs
+    than it filters.
+    """
+    if not wanted:
+        return True
+    jl = (job_location or "").strip().lower()
+    if not jl:
+        return True
+    if any(w in jl for w in _REMOTE_WORDS):
+        return True
+    for want in wanted:
+        w = want.strip().lower()
+        if not w or any(r in w for r in _REMOTE_WORDS):
+            continue
+        # "Houston, TX" should match "Houston, Harris County" — compare on the
+        # city, since sources disagree wildly about the rest of the string.
+        city = w.split(",")[0].strip()
+        if city and city in jl:
+            return True
+    return False
+
+
 def is_us_location(location: str) -> bool:
     """Keep US and unknown/remote locations; drop clearly foreign ones.
 
@@ -265,6 +295,7 @@ def rank_jobs(
     exclude_locations: list[str] | None = None,
     min_salary: float | None = None,
     us_only: bool = False,
+    locations: list[str] | None = None,
     per_source: int | None = None,
     limit: int = 10,
 ) -> list[dict]:
@@ -294,6 +325,12 @@ def rank_jobs(
 
     if us_only:
         jobs = [j for j in jobs if is_us_location(j.location)]
+
+    # Preferred locations previously changed only which queries were sent, so a
+    # user who picked Houston still saw mostly non-Houston results ranked above
+    # them. Honour the choice at ranking time too.
+    if locations:
+        jobs = [j for j in jobs if matches_locations(j.location, locations)]
 
     if exclude_locations:
         xl = [e.lower() for e in exclude_locations]

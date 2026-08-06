@@ -92,94 +92,79 @@ def render() -> None:
             st.session_state["search_locations"] = derived["locations"]
 
     with st.form("search_form"):
+        # Two questions almost everyone wants to answer, and nothing else.
+        # Every other knob sits in Advanced with a working default, because a
+        # form with nine controls reads as work to do before you can search.
         col1, col2 = st.columns(2)
         with col1:
-            # The toggle only decides where *keywords* come from. Every other
-            # filter is available either way — there's no reason reading titles
-            # off a resume should cost you control of location or exclusions.
             if auto:
                 keywords = derived["keywords"]
-                st.caption(
-                    "**Job titles** come from your resume. Turn the toggle off to type "
-                    "your own. Everything below applies either way."
-                )
             else:
                 keywords = _csv(
                     st.text_input(
-                        "Search keywords",
+                        "Job titles to search for",
                         key="search_keywords",
-                        placeholder="e.g. quality engineer, LLM evaluation, SDET",
-                        help="Comma-separated job titles or skills to search for.",
+                        placeholder="e.g. quality engineer, QA manager, SDET",
                     )
                 )
-
             locations = st.multiselect(
-                "Preferred locations",
+                "Where do you want to work?",
                 options=_location_options(derived["locations"]),
                 key="search_locations",
-                placeholder="Choose one or more, or type your own",
+                placeholder="Any location (including remote)",
                 accept_new_options=True,
-                help="Where you want to work. Pre-filled from your resume the first "
-                "time; clear it to search everywhere, including remote.",
-            )
-            query = st.text_input(
-                "Required word (optional)",
-                key="search_query",
-                help="Drops any job whose title and description both lack this word.",
+                help="Only these places, plus remote jobs. Leave empty for anywhere in the US.",
             )
         with col2:
-            min_score = st.slider("Minimum match score", 0, 100, d["min_score"])
             min_salary = st.number_input(
                 "Minimum salary (USD)", min_value=0, max_value=500_000,
                 value=d["min_salary"], step=5_000,
-                help="Jobs with no listed salary are kept; only known-lower ones are dropped.",
+                help="Jobs that don't list a salary are still shown.",
             )
-            limit = st.slider("Results to show", 5, 100, d["limit"])
+            limit = st.slider("How many results?", 5, 100, d["limit"])
 
-        with st.expander("Exclusions and sources"):
-            exclude = _csv(
-                st.text_input(
-                    "Exclude these words in titles", value=d["exclude"],
-                    placeholder="e.g. manufacturing, hardware, sales",
-                )
-            )
+        with st.expander("Advanced options"):
             us_only = st.checkbox(
                 "United States only", value=True, key="search_us_only",
                 help="Drops postings that name a country outside the US. Remote "
                 "and unspecified locations are kept.",
             )
-            if us_only:
-                # The country list is exactly what this checkbox already does, so
-                # showing it pre-filled just invites redundant edits. The field
-                # stays for narrowing *within* the US.
-                st.caption(
-                    "Countries outside the US are already excluded. Use the box below "
-                    "only to rule out places inside the US."
+            min_score = st.slider(
+                "Minimum match score", 0, 100, d["min_score"],
+                help="How closely a job must match your resume. Lower to see more.",
+            )
+            exclude = _csv(
+                st.text_input(
+                    "Skip jobs whose title contains", value=d["exclude"],
+                    placeholder="e.g. manufacturing, hardware, sales",
                 )
+            )
             exclude_locations = _csv(
                 st.text_input(
-                    "Also exclude these locations",
+                    "Skip these locations",
                     value="" if us_only else d["exclude_locations"],
                     placeholder="e.g. new york, california",
                 )
             )
             companies = _csv(
                 st.text_input(
-                    "Also search specific companies",
+                    "Also search these companies by name",
                     key="search_companies",
                     placeholder="e.g. Figma, Discord, Stripe",
-                    help="Company names to pull directly from their careers page, "
-                    "on top of the nationwide search. Anything not found is skipped.",
+                    help="Pulled straight from their careers page, on top of the "
+                    "nationwide search. Anything not found is skipped.",
                 )
             )
+            query = st.text_input(
+                "Must contain this word",
+                key="search_query",
+                placeholder="optional",
+                help="Drops any job whose title and description both lack this word.",
+            )
 
-            # Most people neither know nor care what Ashby is; the default set is
-            # the right answer for almost everyone. Keep the control, but don't
-            # make everyone scroll past a wall of chips to reach the rest.
             pick_sources = st.checkbox(
-                "Choose job sources myself", value=False, key="search_pick_sources",
-                help="Off means the recommended set. Turn on to add Workday, "
-                "USAJOBS, or EU boards, or to narrow the search.",
+                f"Choose job sources myself ({len(search.DEFAULT_SOURCES)} used by default)",
+                value=False, key="search_pick_sources",
             )
             if pick_sources:
                 enabled = st.multiselect(
@@ -190,16 +175,6 @@ def render() -> None:
                 )
             else:
                 enabled = search.DEFAULT_SOURCES
-                st.caption(
-                    f"Searching {len(enabled)} sources: "
-                    + ", ".join(search.SOURCE_LABELS[k] for k in enabled)
-                    + "."
-                )
-            if "adzuna" in enabled and not all(search.adzuna_credentials()):
-                st.caption(
-                    "Adzuna needs `ADZUNA_APP_ID` / `ADZUNA_APP_KEY` in secrets or env — "
-                    "it'll be skipped without them. Free keys: developer.adzuna.com"
-                )
             if "usajobs" in enabled and not all(search.usajobs_credentials()):
                 st.caption(
                     "USAJOBS needs `USAJOBS_EMAIL` / `USAJOBS_API_KEY` in secrets or env — "
@@ -232,6 +207,7 @@ def render() -> None:
             exclude_locations=exclude_locations,
             min_salary=min_salary or None,
             us_only=us_only,
+            locations=locations,
             limit=limit,
         )
         st.session_state.min_score = min_score
