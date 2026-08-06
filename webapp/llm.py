@@ -128,9 +128,16 @@ STRENGTHS = list(_BUDGETS)
 DEFAULT_STRENGTH = "Light"
 
 
-def tailor_resume(
+def tailor_prompt(
     resume: str, job: dict, extra_notes: str = "", strength: str = DEFAULT_STRENGTH
-) -> str:
+) -> tuple[str, str]:
+    """The (system, user) pair for a tailoring request.
+
+    Split out from `tailor_resume` so the same wording can be handed to the user
+    to paste into an assistant they're already signed in to, instead of being
+    sent through an API key. Both paths must stay identical — a divergence would
+    mean the manual route quietly produces worse output than the automated one.
+    """
     system = _TAILOR_BASE.format(budget=_BUDGETS.get(strength, _BUDGETS[DEFAULT_STRENGTH]))
     notes = f"\n\nAdditional instructions from the candidate:\n{extra_notes}" if extra_notes.strip() else ""
     prompt = f"""Make targeted edits to this resume for the job posting below.
@@ -146,6 +153,13 @@ Location: {job.get('location', '')}
 <current_resume>
 {resume}
 </current_resume>{notes}"""
+    return system, prompt
+
+
+def tailor_resume(
+    resume: str, job: dict, extra_notes: str = "", strength: str = DEFAULT_STRENGTH
+) -> str:
+    system, prompt = tailor_prompt(resume, job, extra_notes, strength)
     return _complete(system, prompt, max_tokens=24000)
 
 
@@ -163,7 +177,8 @@ Paragraph 2: concrete evidence from their actual work. Paragraph 3: brief close.
 Output the letter body in markdown, starting with the greeting. No commentary."""
 
 
-def cover_letter(resume: str, job: dict, extra_notes: str = "") -> str:
+def letter_prompt(resume: str, job: dict, extra_notes: str = "") -> tuple[str, str]:
+    """The (system, user) pair for a cover-letter request. See `tailor_prompt`."""
     notes = f"\n\nAdditional instructions from the candidate:\n{extra_notes}" if extra_notes.strip() else ""
     prompt = f"""Write a cover letter for this job.
 
@@ -178,4 +193,19 @@ Location: {job.get('location', '')}
 <resume>
 {resume}
 </resume>{notes}"""
-    return _complete(_LETTER_SYSTEM, prompt, max_tokens=8000)
+    return _LETTER_SYSTEM, prompt
+
+
+def cover_letter(resume: str, job: dict, extra_notes: str = "") -> str:
+    system, prompt = letter_prompt(resume, job, extra_notes)
+    return _complete(system, prompt, max_tokens=8000)
+
+
+def as_pasteable(system: str, prompt: str) -> str:
+    """Flatten a (system, user) pair into one block to paste into a chat window.
+
+    Chat UIs have no separate system field, so the instructions are folded in as
+    a leading section rather than dropped — without them the model writes a
+    generic letter instead of following the rules the API path enforces.
+    """
+    return f"{system}\n\n---\n\n{prompt}"

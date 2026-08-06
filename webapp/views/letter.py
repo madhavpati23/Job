@@ -45,6 +45,9 @@ def render() -> None:
                     llm.show_error(exc)
         if col2.button("Build scaffold instead"):
             st.session_state.cover_letter = build_scaffold(resume, job)
+        uihelp.paste_prompt_block(
+            llm.as_pasteable(*llm.letter_prompt(resume, job, notes)), "letter", "the letter"
+        )
     else:
         # The scaffold is genuinely useful here, so lead with it rather than
         # making the whole step look blocked.
@@ -56,6 +59,15 @@ def render() -> None:
         )
         if st.button("Build scaffold", type="primary"):
             st.session_state.cover_letter = build_scaffold(resume, job)
+        # The no-key branch is exactly who this is for: a full-quality prompt to
+        # run in an assistant they already pay for.
+        uihelp.paste_prompt_block(
+            llm.as_pasteable(
+                *llm.letter_prompt(resume, job, st.session_state.get("letter_notes", ""))
+            ),
+            "letter",
+            "the letter",
+        )
 
     letter = st.session_state.get("cover_letter")
     if not letter:

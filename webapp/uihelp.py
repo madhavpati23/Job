@@ -37,6 +37,31 @@ def bound_text_area(label: str, source_key: str, widget_key: str, **kwargs) -> s
     return edited
 
 
+def paste_prompt_block(pasteable: str, where: str, target_label: str) -> None:
+    """Offer the assembled prompt for the user to run in their own assistant.
+
+    The app never holds credentials for that assistant — the user is already
+    signed in to it, copies the prompt across, and pastes the answer back into
+    the editor above. This is the route for people whose subscription covers a
+    chat assistant but who have no API credits; it costs a copy-paste and needs
+    no key at all.
+    """
+    with st.expander(f"No API key? Run this in {target_label} yourself", expanded=False):
+        st.caption(
+            "Copy the prompt, paste it into any assistant you're already signed in to, "
+            f"then paste its answer into the {target_label} box above. Nothing here is "
+            "sent anywhere by the app, and no login is needed."
+        )
+        st.code(pasteable, language="markdown")
+        st.download_button(
+            "Download prompt (.txt)",
+            pasteable,
+            file_name=f"{where}_prompt.txt",
+            mime="text/plain",
+            key=f"dl_prompt_{where}",
+        )
+
+
 def job_key(job: dict) -> str:
     """Stable per-posting identity. Falls back for manually-entered jobs, which
     have no source id."""
