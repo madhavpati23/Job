@@ -44,6 +44,21 @@ DEFAULT_SOURCES = [
 ]
 
 
+def default_source_names() -> list[str]:
+    """Plain names of the default sources, for prose in the UI.
+
+    Derived from DEFAULT_SOURCES rather than written out, so a hand-kept list
+    can't fall behind the code again. The labels carry qualifiers meant for the
+    source picker ("boards", "(nationwide US)") that read as noise mid-sentence,
+    so they are trimmed here.
+    """
+    names = []
+    for key in DEFAULT_SOURCES:
+        label = re.sub(r"\s*\([^)]*\)", "", SOURCE_LABELS.get(key, key))
+        names.append(re.sub(r"\s+boards$", "", label).strip())
+    return names
+
+
 # Offered in the location picker. The Muse matches on exact strings like these,
 # so they're spelled the way its API expects. Users can also type their own.
 LOCATION_OPTIONS = [

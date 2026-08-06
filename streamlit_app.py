@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import streamlit as st
 
-from webapp import aihint, llm, nav, providers
+from webapp import aihint, llm, nav, providers, search
 from webapp.views import jobs, letter, resume, tracker, tailor
 
 st.set_page_config(page_title="Job Copilot", page_icon="🎯", layout="wide")
@@ -126,8 +126,9 @@ def sidebar() -> str:
 
     st.sidebar.divider()
     st.sidebar.caption(
-        "Job data comes from public APIs (Greenhouse, Lever, Ashby, Remotive, "
-        "The Muse, SmartRecruiters, Adzuna). Nothing you upload is stored server-side."
+        f"Job data comes from public APIs ({', '.join(search.default_source_names())}), "
+        "with more available in the source picker. Nothing you upload is stored "
+        "server-side."
     )
     return choice
 
