@@ -4,6 +4,9 @@ httpx>=0.27.0
 truststore>=0.9.0
 pypdf>=5.1.0
 python-docx>=1.1.2
+# Optional: lets a local run remember the API key in the OS credential vault.
+# Absent, the app just asks for the key each session.
+keyring>=25.0.0
 anthropic>=0.40.0
 openai>=1.60.0
 google-genai>=1.0.0
