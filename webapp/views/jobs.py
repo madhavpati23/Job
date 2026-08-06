@@ -36,6 +36,12 @@ def _csv(raw: str) -> list[str]:
     return [p.strip() for p in raw.split(",") if p.strip()]
 
 
+def _location_options(derived: list[str]) -> list[str]:
+    """Metro list, with anywhere the resume named pinned to the top."""
+    extra = [l for l in derived if l not in search.LOCATION_OPTIONS]
+    return extra + search.LOCATION_OPTIONS
+
+
 def render() -> None:
     st.header("2 · Find matching jobs")
 
@@ -59,27 +65,30 @@ def render() -> None:
 
     if auto:
         titles = ", ".join(derived["keywords"])
-        places = ", ".join(derived["locations"])
-        if titles or places:
-            st.caption(
-                f"Using **{titles or 'no titles found'}**"
-                + (f" · in **{places}**" if places else " · anywhere")
-                + " — from your resume."
-            )
+        if titles:
+            st.caption(f"Searching for **{titles}** — read from your resume.")
         else:
             st.caption(
                 "Couldn't read job titles off your resume, so this searches broadly "
                 "and ranks everything against it. Turn the toggle off to set terms yourself."
             )
+        # Seed the picker from the resume once, then leave it under the user's
+        # control — where someone lives is often not where they want to work.
+        if "search_locations" not in st.session_state:
+            st.session_state["search_locations"] = derived["locations"]
 
     with st.form("search_form"):
         col1, col2 = st.columns(2)
         with col1:
+            # The toggle only decides where *keywords* come from. Every other
+            # filter is available either way — there's no reason reading titles
+            # off a resume should cost you control of location or exclusions.
             if auto:
                 keywords = derived["keywords"]
-                locations = derived["locations"]
-                query = ""
-                st.caption("Keywords and locations come from your resume.")
+                st.caption(
+                    "**Job titles** come from your resume. Turn the toggle off to type "
+                    "your own. Everything below applies either way."
+                )
             else:
                 keywords = _csv(
                     st.text_input(
@@ -89,19 +98,21 @@ def render() -> None:
                         help="Comma-separated job titles or skills to search for.",
                     )
                 )
-                locations = st.multiselect(
-                    "Locations",
-                    options=search.LOCATION_OPTIONS,
-                    key="search_locations",
-                    placeholder="Choose one or more, or type your own",
-                    accept_new_options=True,
-                    help="Leave empty to search everywhere, including remote.",
-                )
-                query = st.text_input(
-                    "Required word (optional)",
-                    key="search_query",
-                    help="Drops any job whose title and description both lack this word.",
-                )
+
+            locations = st.multiselect(
+                "Preferred locations",
+                options=_location_options(derived["locations"]),
+                key="search_locations",
+                placeholder="Choose one or more, or type your own",
+                accept_new_options=True,
+                help="Where you want to work. Pre-filled from your resume the first "
+                "time; clear it to search everywhere, including remote.",
+            )
+            query = st.text_input(
+                "Required word (optional)",
+                key="search_query",
+                help="Drops any job whose title and description both lack this word.",
+            )
         with col2:
             min_score = st.slider("Minimum match score", 0, 100, d["min_score"])
             min_salary = st.number_input(
@@ -119,13 +130,22 @@ def render() -> None:
                 )
             )
             us_only = st.checkbox(
-                "United States only", value=True,
+                "United States only", value=True, key="search_us_only",
                 help="Drops postings that name a country outside the US. Remote "
                 "and unspecified locations are kept.",
             )
+            if us_only:
+                # The country list is exactly what this checkbox already does, so
+                # showing it pre-filled just invites redundant edits. The field
+                # stays for narrowing *within* the US.
+                st.caption(
+                    "Countries outside the US are already excluded. Use the box below "
+                    "only to rule out places inside the US."
+                )
             exclude_locations = _csv(
                 st.text_input(
-                    "Also exclude these locations", value=d["exclude_locations"],
+                    "Also exclude these locations",
+                    value="" if us_only else d["exclude_locations"],
                     placeholder="e.g. new york, california",
                 )
             )
