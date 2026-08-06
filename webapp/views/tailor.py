@@ -23,6 +23,7 @@ def show_gap_analysis(resume: str, job: dict) -> None:
 
 
 def render() -> None:
+    nav.back_button("Tailor resume")
     st.header("3 · Tailor your resume")
 
     resume = st.session_state.get("resume_text", "")
