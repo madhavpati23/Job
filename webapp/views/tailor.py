@@ -23,7 +23,6 @@ def show_gap_analysis(resume: str, job: dict) -> None:
 
 
 def render() -> None:
-    nav.back_button("Tailor resume")
     st.header("3 · Tailor your resume")
 
     resume = st.session_state.get("resume_text", "")
@@ -51,26 +50,8 @@ def render() -> None:
         st.caption(
             "Or use the gap analysis above to edit your resume by hand, then continue."
         )
-        uihelp.paste_prompt_block(
-            llm.as_pasteable(
-                *llm.tailor_prompt(
-                    resume,
-                    job,
-                    st.session_state.get("tailor_notes", ""),
-                    st.session_state.get("tailor_strength", llm.DEFAULT_STRENGTH),
-                )
-            ),
-            "tailor",
-            "the result",
-        )
-        # Without a generated draft there is no editor to paste into, so open one
-        # seeded with the original resume for the user to replace.
-        if st.button("Paste a result — open the editor"):
-            st.session_state.tailored_resume = resume
-            st.rerun()
-        if not st.session_state.get("tailored_resume"):
-            nav.next_button("Tailor resume", key="next_tailor_nokey")
-            return
+        nav.next_button("Tailor resume", key="next_tailor_nokey")
+        return
 
     aihint.ready_badge()
 
@@ -96,12 +77,6 @@ def render() -> None:
                 st.session_state.tailored_resume = llm.tailor_resume(resume, job, notes, strength)
             except Exception as exc:  # noqa: BLE001
                 llm.show_error(exc)
-
-    uihelp.paste_prompt_block(
-        llm.as_pasteable(*llm.tailor_prompt(resume, job, notes, strength)),
-        "tailor",
-        "the result",
-    )
 
     tailored = st.session_state.get("tailored_resume")
     if not tailored:
@@ -157,8 +132,6 @@ def render() -> None:
         file_name=f"resume_{slug}.docx",
         mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     )
-
-    uihelp.apply_block(job, "tailor")
 
     st.divider()
     nav.next_button("Tailor resume")

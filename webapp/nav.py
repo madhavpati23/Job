@@ -81,7 +81,6 @@ _PER_JOB_KEYS = (
     "tailored_editor",
     "letter_editor",
     "job_source",
-    "logged_job_key",
     "manual_job_title",
     "manual_job_company",
     "manual_job_desc",
@@ -98,25 +97,6 @@ def start_new_application(destination: str = "Find jobs") -> None:
 def next_step(current: str) -> str | None:
     idx = STEPS.index(current)
     return STEPS[idx + 1] if idx + 1 < len(STEPS) else None
-
-
-def prev_step(current: str) -> str | None:
-    idx = STEPS.index(current)
-    return STEPS[idx - 1] if idx > 0 else None
-
-
-def back_button(current: str, key: str | None = None) -> None:
-    """Render a '← <step>' link at the top of a page.
-
-    Steps are ordered, so 'back' is the previous step rather than a browser-style
-    history: returning to wherever you last were would be unpredictable when the
-    sidebar can jump anywhere. The first step has nowhere to go and renders nothing.
-    """
-    prev = prev_step(current)
-    if not prev:
-        return
-    if st.button(f"←  {prev}", type="tertiary", key=key or f"back_{current}"):
-        goto(prev)
 
 
 def next_button(

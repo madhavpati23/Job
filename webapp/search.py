@@ -34,29 +34,11 @@ SOURCE_LABELS = {
     "adzuna": "Adzuna (nationwide US)",
 }
 
-# Sensible for a US-focused search out of the box. Workday and SmartRecruiters carry
-# a lot of large US employers, so they belong here rather than behind the opt-in.
-# Left off: Arbeitnow is mostly German, USAJOBS needs a key and is citizen-only, and
-# RemoteOK overlaps heavily with the other remote boards.
+# Sensible for a US-focused search out of the box. Arbeitnow is mostly German
+# and USAJOBS needs a key, so neither is on by default.
 DEFAULT_SOURCES = [
-    "greenhouse", "lever", "ashby", "workday", "smartrecruiters",
-    "remotive", "muse", "jobicy", "himalayas", "adzuna",
+    "greenhouse", "lever", "ashby", "remotive", "muse", "jobicy", "himalayas", "adzuna",
 ]
-
-
-def default_source_names() -> list[str]:
-    """Plain names of the default sources, for prose in the UI.
-
-    Derived from DEFAULT_SOURCES rather than written out, so a hand-kept list
-    can't fall behind the code again. The labels carry qualifiers meant for the
-    source picker ("boards", "(nationwide US)") that read as noise mid-sentence,
-    so they are trimmed here.
-    """
-    names = []
-    for key in DEFAULT_SOURCES:
-        label = re.sub(r"\s*\([^)]*\)", "", SOURCE_LABELS.get(key, key))
-        names.append(re.sub(r"\s+boards$", "", label).strip())
-    return names
 
 
 # Offered in the location picker. The Muse matches on exact strings like these,

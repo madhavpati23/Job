@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import streamlit as st
 
-from webapp import aihint, keystore, llm, nav, providers, search
+from webapp import aihint, llm, nav, providers
 from webapp.views import jobs, letter, resume, tracker, tailor
 
 st.set_page_config(page_title="Job Copilot", page_icon="🎯", layout="wide")
@@ -46,11 +46,6 @@ def ai_settings(auto_expand: bool = False) -> None:
             st.session_state["_llm_provider_seen"] = pid
             st.session_state.pop("llm_model_options", None)
             st.session_state.pop("llm_model", None)
-            # Swap in whatever this provider has remembered, and clear the last
-            # provider's key rather than leaving it in a box labelled for the new
-            # one. Must happen before the text_input exists: Streamlit forbids
-            # writing a widget's session_state key once it has been created.
-            st.session_state["llm_key"] = keystore.load(pid)
 
         if not providers.installed(provider):
             st.warning(f"`pip install {provider.package}` to use {provider.label}.")
@@ -68,41 +63,11 @@ def ai_settings(auto_expand: bool = False) -> None:
         if env_key:
             st.success(f"Key found in secrets/environment (`{provider.env_var}`).")
         else:
-            vault = keystore.backend_name() if keystore.available() else ""
             st.text_input(
                 f"{provider.label} API key", type="password",
                 placeholder=provider.key_hint, key="llm_key",
-                help=(
-                    f"Kept for this session unless you tick 'Remember', which stores it "
-                    f"in {vault} — encrypted by the OS under your user account. Never "
-                    "logged, never written to the tracker database, never put in the URL."
-                    if vault else
-                    "Used for this session only — never stored or logged."
-                ),
+                help="Used for this session only — never stored or logged.",
             )
-
-            if vault:
-                typed = st.session_state.get("llm_key", "")
-                was_saved = keystore.has_saved(pid)
-                remember = st.checkbox(
-                    "Remember this key on this machine",
-                    value=was_saved, key=f"llm_remember_{pid}",
-                    help=f"Stored in {vault}. Other user accounts on this machine can't read it.",
-                )
-                if remember and typed and typed != keystore.load(pid):
-                    if keystore.save(pid, typed):
-                        st.caption(f"🔒 Saved to {vault}.")
-                elif not remember and was_saved:
-                    keystore.delete(pid)
-                    st.caption("Forgotten — you'll be asked for a key next session.")
-                elif remember and was_saved:
-                    st.caption(f"🔒 Remembered in {vault}.")
-            elif keystore.shared_deployment():
-                st.caption(
-                    "Shared deployment — keys are never saved here. Set "
-                    f"`{provider.env_var}` in secrets to avoid re-entering it."
-                )
-
             if provider.console_url:
                 st.caption(f"Get a key: {provider.console_url}")
 
@@ -161,9 +126,8 @@ def sidebar() -> str:
 
     st.sidebar.divider()
     st.sidebar.caption(
-        f"Job data comes from public APIs ({', '.join(search.default_source_names())}), "
-        "with more available in the source picker. Nothing you upload is stored "
-        "server-side."
+        "Job data comes from public APIs (Greenhouse, Lever, Ashby, Remotive, "
+        "The Muse, SmartRecruiters, Adzuna). Nothing you upload is stored server-side."
     )
     return choice
 

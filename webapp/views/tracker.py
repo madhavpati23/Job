@@ -165,7 +165,6 @@ def _server_storage(rows: list[dict]) -> None:
 
 
 def render() -> None:
-    nav.back_button("Tracker")
     st.header("5 · Application tracker")
 
     if store.enabled():

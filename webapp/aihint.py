@@ -41,9 +41,7 @@ def setup_callout(what: str) -> None:
             "The **Set up AI writing** panel on the left is now open. Three steps:\n\n"
             "1. **Pick a provider** — Anthropic, OpenAI, Google, Groq, or any "
             "OpenAI-compatible endpoint\n"
-            "2. **Paste your API key** — session-only unless you tick "
-            "*Remember this key on this machine*, which stores it in your OS "
-            "credential vault\n"
+            "2. **Paste your API key** — used for this session only, never stored\n"
             "3. **Load available models** and pick one\n"
         )
         names = ", ".join(p.label for p in providers.PROVIDERS.values())

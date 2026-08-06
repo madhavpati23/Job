@@ -6,10 +6,10 @@ import streamlit as st
 
 from jobapply_mcp.drafting import build_scaffold
 from webapp import aihint, jobinput, llm, nav, resume_io, uihelp
+from webapp.views import tracker
 
 
 def render() -> None:
-    nav.back_button("Cover letter")
     st.header("4 · Cover letter")
 
     resume = st.session_state.get("resume_text", "")
@@ -45,9 +45,6 @@ def render() -> None:
                     llm.show_error(exc)
         if col2.button("Build scaffold instead"):
             st.session_state.cover_letter = build_scaffold(resume, job)
-        uihelp.paste_prompt_block(
-            llm.as_pasteable(*llm.letter_prompt(resume, job, notes)), "letter", "the letter"
-        )
     else:
         # The scaffold is genuinely useful here, so lead with it rather than
         # making the whole step look blocked.
@@ -59,15 +56,6 @@ def render() -> None:
         )
         if st.button("Build scaffold", type="primary"):
             st.session_state.cover_letter = build_scaffold(resume, job)
-        # The no-key branch is exactly who this is for: a full-quality prompt to
-        # run in an assistant they already pay for.
-        uihelp.paste_prompt_block(
-            llm.as_pasteable(
-                *llm.letter_prompt(resume, job, st.session_state.get("letter_notes", ""))
-            ),
-            "letter",
-            "the letter",
-        )
 
     letter = st.session_state.get("cover_letter")
     if not letter:
@@ -89,11 +77,19 @@ def render() -> None:
         mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     )
 
-    uihelp.apply_block(job, "letter")
-
     st.divider()
+    st.markdown("**Applied?** Log it so you can track and export your applications.")
     col1, col2 = st.columns(2)
-    with col1:
-        nav.next_button("Cover letter", label="Go to Tracker →", kind="secondary")
-    if col2.button("Apply to another position →"):
+    if col1.button("Log this as applied & continue →", type="primary"):
+        tracker.add(
+            company=job.get("company", ""),
+            role=job.get("title", "").strip(),
+            location=job.get("location", ""),
+            url=job.get("url", ""),
+        )
+        nav.goto("Tracker")
+    with col2:
+        nav.next_button("Cover letter", label="Skip to Tracker →", kind="secondary")
+
+    if st.button("Apply to another position →"):
         nav.start_new_application()
