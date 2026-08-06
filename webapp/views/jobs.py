@@ -149,6 +149,16 @@ def render() -> None:
                     placeholder="e.g. new york, california",
                 )
             )
+            companies = _csv(
+                st.text_input(
+                    "Also search specific companies",
+                    key="search_companies",
+                    placeholder="e.g. Figma, Discord, Stripe",
+                    help="Company names to pull directly from their careers page, "
+                    "on top of the nationwide search. Anything not found is skipped.",
+                )
+            )
+
             # Most people neither know nor care what Ashby is; the default set is
             # the right answer for almost everyone. Keep the control, but don't
             # make everyone scroll past a wall of chips to reach the rest.
@@ -185,7 +195,7 @@ def render() -> None:
         submitted = st.form_submit_button("Search jobs", type="primary")
 
     if submitted:
-        config = search.build_config(enabled, keywords, locations)
+        config = search.build_config(enabled, keywords, locations, companies)
         if not config:
             st.error("Select at least one source.")
             return

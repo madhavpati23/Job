@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import re
 from typing import Any
 
 from jobapply_mcp.matching import rank_jobs
@@ -98,7 +99,32 @@ def usajobs_credentials() -> tuple[str, str]:
         return "", ""
 
 
-def build_config(enabled: list[str], keywords: list[str], locations: list[str]) -> dict[str, Any]:
+def company_slugs(names: list[str]) -> list[str]:
+    """Candidate ATS board tokens for company names the user typed.
+
+    A board token is the company slug in its careers URL, and companies are
+    inconsistent about it — "Acme Corp" may be `acmecorp`, `acme-corp`, or
+    `acme`. Every variant is tried; the fetchers return [] for tokens that don't
+    exist, so guessing wide costs one cheap 404 rather than an error.
+    """
+    out: list[str] = []
+    for raw in names:
+        name = re.sub(r"[^a-z0-9 -]", "", (raw or "").strip().lower())
+        if not name:
+            continue
+        words = name.split()
+        for candidate in ("".join(words), "-".join(words), words[0]):
+            if candidate and candidate not in out:
+                out.append(candidate)
+    return out
+
+
+def build_config(
+    enabled: list[str],
+    keywords: list[str],
+    locations: list[str],
+    companies: list[str] | None = None,
+) -> dict[str, Any]:
     """Assemble a `fetch_all` config from the user's UI selections.
 
     Empty keywords/locations mean "no filter" and are passed through as such —
@@ -108,9 +134,12 @@ def build_config(enabled: list[str], keywords: list[str], locations: list[str]) 
     base = load_base_config()
     cfg: dict[str, Any] = {}
 
+    # Companies the user named are tried on every ATS: we don't know which one
+    # a given employer uses, and an unknown token simply returns nothing.
+    extra = company_slugs(companies or [])
     for name in ("greenhouse", "lever", "ashby"):
         if name in enabled:
-            cfg[name] = base.get(name, [])
+            cfg[name] = list(dict.fromkeys(list(base.get(name, [])) + extra))
     if "smartrecruiters" in enabled:
         cfg["smartrecruiters"] = base.get("smartrecruiters", [])
     if "remoteok" in enabled:
@@ -146,7 +175,7 @@ def build_config(enabled: list[str], keywords: list[str], locations: list[str]) 
                 "searches": keywords or [""],
                 # "" is a nationwide pass; named locations are searched in addition.
                 "wheres": [""] + [l for l in locations if l and l != "Flexible / Remote"],
-                "pages": base.get("adzuna", {}).get("pages", 2),
+                "pages": base.get("adzuna", {}).get("pages", 5),
             }
     return cfg
 
